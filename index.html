@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Wifi, 
   Smartphone, 
@@ -15,11 +15,13 @@ import {
   AlertTriangle,
   TableProperties,
   RotateCcw,
-  MousePointer2
+  MousePointer2,
+  Share2,
+  Save
 } from 'lucide-react';
 
-// --- 全校 65 個節點完整資料 (預設版) ---
-const FULL_SCHOOL_DATA = [
+// --- 全校 65 個節點原始預設資料 ---
+const DEFAULT_DATA = [
   { id: 101, ssid: 'FJM-101', classroom: '802班' },
   { id: 102, ssid: 'FJM-102', classroom: '保健中心' },
   { id: 103, ssid: 'FJM-103', classroom: '學務處' },
@@ -110,323 +112,242 @@ const FULL_SCHOOL_DATA = [
 ];
 
 export default function App() {
-  const [data, setData] = useState(FULL_SCHOOL_DATA);
+  const [data, setData] = useState(DEFAULT_DATA);
   const [copied, setCopied] = useState(false);
+  const [shared, setShared] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState('');
 
-  // 根據目前的 data 產生書籤代碼 (核心注入邏輯)
+  // 1. 自動記憶與分享邏輯
+  useEffect(() => {
+    // A. 優先嘗試從網址載入分享的資料 (Base64)
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedData = urlParams.get('d');
+    if (sharedData) {
+      try {
+        const decoded = JSON.parse(atob(sharedData));
+        setData(decoded);
+        return;
+      } catch (e) { console.error("分享連結解析失敗"); }
+    }
+
+    // B. 若無分享連結，從本地儲存載入之前的自定義資料
+    const saved = localStorage.getItem('fjm_wifi_custom_data');
+    if (saved) {
+      try { setData(JSON.parse(saved)); } catch (e) {}
+    }
+  }, []);
+
+  // 2. 當資料變動時，存入本地儲存
+  useEffect(() => {
+    if (data !== DEFAULT_DATA) {
+      localStorage.setItem('fjm_wifi_custom_data', JSON.stringify(data));
+    }
+  }, [data]);
+
+  // 生成書籤代碼
   const bookmarkletCode = useMemo(() => {
     const compactData = data.map(i => ({ id: i.id, ssid: i.ssid, classroom: i.classroom }));
-    const script = `(async function(){if(document.getElementById('fjm-fast-wifi-root'))return;function l(s,g){return new Promise(r=>{if(window[g])return r();const t=document.createElement('script');t.src=s;t.onload=r;document.head.appendChild(t)})};await l('https://cdn.tailwindcss.com','tailwind');await l('https://unpkg.com/react@18/umd/react.production.min.js','React');await l('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js','ReactDOM');const rootDiv=document.createElement('div');rootDiv.id='fjm-fast-wifi-root';rootDiv.style.cssText='position:fixed;inset:0;z-index:9999999;background:#f8fafc;overflow-y:auto;';document.body.appendChild(rootDiv);const{useState,useEffect,useMemo,createElement:e}=React;const AP_DATA=${JSON.stringify(compactData)};const PasswordCell=({ssid,id,copyToClipboard,copiedId})=>{const[pwd,setPwd]=useState(null);const[raw,setRaw]=useState(null);const[loading,setLoading]=useState(true);useEffect(()=>{let m=true;fetch('/api/qrcode_searching?ssid='+ssid).then(r=>r.json()).then(j=>{if(m&&j.success&&j.data.length>0){let p=j.data[0].ss_password;setRaw(p);setPwd(p.replace(/(.{4})/g,'$1 ').trim());setLoading(false)}}).catch(()=>{});return()=>m=false},[ssid]);return e('div',{className:"mt-3 flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100 font-sans"},e('div',null,e('p',{className:"text-xs text-slate-500 font-sans"},"Wi-Fi 密碼"),loading?e('span',{className:"text-blue-500 animate-pulse font-sans"},"讀取中"):e('p',{className:"font-mono text-xl font-bold text-slate-800"},pwd)),e('button',{onClick:()=>copyToClipboard(raw||pwd,id),className:"px-4 py-2 rounded-xl text-white font-bold bg-blue-600 active:bg-blue-700 font-sans"},copiedId===id?'已複製':'複製'))};const App=()=>{const[s,setS]=useState('');const[c,setC]=useState(null);const f=useMemo(()=>!s.trim()?AP_DATA:AP_DATA.filter(i=>i.ssid.toLowerCase().includes(s.toLowerCase())||i.classroom.includes(s)),[s]);return e('div',{className:"p-4 max-w-3xl mx-auto font-sans min-h-screen bg-slate-50 text-slate-900"},e('div',{className:"mb-6 flex justify-between items-center"},e('h1',{className:"text-2xl font-black tracking-tight"},"鳳甲 Wi-Fi 極速版"),e('button',{onClick:()=>document.getElementById('fjm-fast-wifi-root').remove(),className:"text-slate-400 font-bold p-2 text-sm hover:text-red-500"},"關閉 ✕")),e('div',{className:"relative mb-6"},e('span',{className:"absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"},"🔍"),e('input',{className:"w-full p-4 pl-12 rounded-2xl border-2 border-slate-200 outline-none focus:border-blue-500 shadow-sm text-lg",placeholder:"搜尋班級...",value:s,onChange:e=>setS(e.target.value)})),e('div',{className:"grid gap-4 md:grid-cols-2"},f.map(i=>e('div',{key:i.id,className:"p-5 bg-white rounded-3xl border border-slate-200 shadow-sm"},e('span',{className:"text-[10px] font-black tracking-widest text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase border border-blue-100 font-sans"},i.classroom),e('h3',{className:"text-xl font-black mt-1 text-slate-800"},i.ssid),e(PasswordCell,{ssid:i.ssid,id:i.id,copiedId:c,copyToClipboard:(t,id)=>{const ta=document.createElement('textarea');ta.value=t.replace(/\\s+/g,'');document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);setC(id);setTimeout(()=>setC(null),2000)}})))))};ReactDOM.createRoot(rootDiv).render(e(App))})()`;
+    const script = `(async function(){if(document.getElementById('fjm-fast-wifi-root'))return;function l(s,g){return new Promise(r=>{if(window[g])return r();const t=document.createElement('script');t.src=s;t.onload=r;document.head.appendChild(t)})};await l('https://cdn.tailwindcss.com','tailwind');await l('https://unpkg.com/react@18/umd/react.production.min.js','React');await l('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js','ReactDOM');const rootDiv=document.createElement('div');rootDiv.id='fjm-fast-wifi-root';rootDiv.style.cssText='position:fixed;inset:0;z-index:9999999;background:#f8fafc;overflow-y:auto;';document.body.appendChild(rootDiv);const{useState,useEffect,useMemo,createElement:e}=React;const AP_DATA=${JSON.stringify(compactData)};const PasswordCell=({ssid,id,copyToClipboard,copiedId})=>{const[pwd,setPwd]=useState(null);const[raw,setRaw]=useState(null);const[loading,setLoading]=useState(true);useEffect(()=>{let m=true;fetch('/api/qrcode_searching?ssid='+ssid).then(r=>r.json()).then(j=>{if(m&&j.success&&j.data.length>0){let p=j.data[0].ss_password;setRaw(p);setPwd(p.replace(/(.{4})/g,'$1 ').trim());setLoading(false)}}).catch(()=>{});return()=>m=false},[ssid]);return e('div',{className:"mt-3 flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100 font-sans text-slate-900"},e('div',null,e('p',{className:"text-xs text-slate-500 font-sans"},"Wi-Fi 密碼"),loading?e('span',{className:"text-blue-500 animate-pulse font-sans"},"抓取中"):e('p',{className:"font-mono text-xl font-bold"},pwd)),e('button',{onClick:()=>copyToClipboard(raw||pwd,id),className:"px-4 py-2 rounded-xl text-white font-bold bg-blue-600 active:bg-blue-700 font-sans shadow-sm"},copiedId===id?'已複製':'複製'))};const App=()=>{const[s,setS]=useState('');const[c,setC]=useState(null);const f=useMemo(()=>!s.trim()?AP_DATA:AP_DATA.filter(i=>i.ssid.toLowerCase().includes(s.toLowerCase())||i.classroom.includes(s)),[s]);return e('div',{className:"p-4 max-w-3xl mx-auto font-sans min-h-screen bg-slate-50 text-slate-900"},e('div',{className:"mb-6 flex justify-between items-center"},e('h1',{className:"text-2xl font-black tracking-tight"},"鳳甲極速版"),e('button',{onClick:()=>document.getElementById('fjm-fast-wifi-root').remove(),className:"text-slate-400 font-bold p-2 text-sm hover:text-red-500"},"關閉 ✕")),e('div',{className:"relative mb-6"},e('span',{className:"absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"},"🔍"),e('input',{className:"w-full p-4 pl-12 rounded-2xl border-2 border-slate-200 outline-none focus:border-blue-500 shadow-sm text-lg",placeholder:"搜尋班級...",value:s,onChange:e=>setS(e.target.value)})),e('div',{className:"grid gap-4 md:grid-cols-2"},f.map(i=>e('div',{key:i.id,className:"p-5 bg-white rounded-2xl border border-slate-200 shadow-sm"},e('span',{className:"text-[10px] font-black tracking-widest text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase border border-blue-100 font-sans font-sans"},i.classroom),e('h3',{className:"text-lg font-black mt-1 text-slate-800"},i.ssid),e(PasswordCell,{ssid:i.ssid,id:i.id,copiedId:c,copyToClipboard:(t,id)=>{const ta=document.createElement('textarea');ta.value=t.replace(/\\s+/g,'');document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);setC(id);setTimeout(()=>setC(null),2000)}})))))};ReactDOM.createRoot(rootDiv).render(e(App))})()`;
     return `javascript:void(${script})`;
   }, [data]);
 
-  const copyToClipboard = (text) => {
+  const handleCopy = () => {
     const ta = document.createElement("textarea");
-    ta.value = text;
+    ta.value = bookmarkletCode;
     document.body.appendChild(ta);
     ta.select();
-    try {
-      document.execCommand('copy');
-      setCopied(true);
-      setTimeout(() => setCopied(false), 3000);
-    } catch (err) {}
+    document.execCommand('copy');
     document.body.removeChild(ta);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 4000);
+  };
+
+  const handleShare = () => {
+    const baseUrl = window.location.href.split('?')[0];
+    const encodedData = btoa(JSON.stringify(data));
+    const shareUrl = `${baseUrl}?d=${encodedData}`;
+    
+    const ta = document.createElement("textarea");
+    ta.value = shareUrl;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    
+    setShared(true);
+    setTimeout(() => setShared(false), 3000);
   };
 
   const handleImport = () => {
     setImportError('');
-    if (!importText.trim()) {
-      setImportError('請輸入匯入內容');
-      return;
-    }
-
+    if (!importText.trim()) return;
     const lines = importText.split(/\r?\n/).filter(l => l.trim());
     const newData = [];
-    
     try {
       lines.forEach((line, index) => {
         const parts = line.split(/\t|,| {2,}/).map(p => p.trim()).filter(p => p);
         if (parts.length < 2) {
-            const fallbackParts = line.split(/\s+/).map(p => p.trim()).filter(p => p);
-            if (fallbackParts.length < 2) throw new Error(`第 ${index + 1} 行格式不正確。`);
-            parts.push(...fallbackParts);
+          const fb = line.split(/\s+/).map(p => p.trim()).filter(p => p);
+          if (fb.length < 2) throw new Error(`第 ${index+1} 行格式錯誤`);
+          parts.push(...fb);
         }
-        const classroom = parts[0];
-        const num = parts[1];
-        newData.push({
-          id: parseInt(num) || (2000 + index),
-          ssid: num.startsWith('FJM-') ? num : `FJM-${num}`,
-          classroom: classroom.endsWith('班') || classroom.length > 4 ? classroom : `${classroom}班`
-        });
+        newData.push({ id: 2000 + index, ssid: `FJM-${parts[1]}`, classroom: parts[0].includes('班') ? parts[0] : `${parts[0]}班` });
       });
       setData(newData);
       setIsImportModalOpen(false);
       setImportText('');
-    } catch (e) {
-      setImportError(`解析出錯: ${e.message}`);
-    }
-  };
-
-  const fillExample = () => {
-    setImportText("802班\t101\n保健中心\t102\n教務處\t103\n806班\t121");
+    } catch (e) { setImportError(e.message); }
   };
 
   const filteredData = useMemo(() => {
-    if (!searchTerm.trim()) return data;
-    const kw = searchTerm.toLowerCase();
-    return data.filter(i => i.ssid.toLowerCase().includes(kw) || i.classroom.includes(kw));
+    return searchTerm.trim() ? data.filter(i => i.ssid.toLowerCase().includes(searchTerm.toLowerCase()) || i.classroom.includes(searchTerm)) : data;
   }, [searchTerm, data]);
 
   return (
-    <div className="min-h-screen bg-[#fcfdfe] text-slate-900 font-sans selection:bg-blue-100 pb-20">
-      
-      {/* 導覽列 */}
-      <nav className="bg-white/90 backdrop-blur-xl border-b sticky top-0 z-[60] shadow-sm">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex justify-between items-center">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans pb-20">
+      {/* 極致自動化 Header */}
+      <nav className="bg-white/80 backdrop-blur-xl border-b sticky top-0 z-[60] px-6 py-4">
+        <div className="max-w-5xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 rotate-3">
+            <div className="w-11 h-11 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
               <Wifi className="text-white w-6 h-6" />
             </div>
-            <div>
-              <h1 className="text-xl font-black tracking-tight leading-none text-slate-800">鳳甲 WIFI 助手</h1>
-              <p className="text-[10px] font-bold text-blue-600 tracking-[0.2em] uppercase mt-1">FJM Quick Connector</p>
-            </div>
+            <h1 className="text-xl font-black tracking-tighter text-slate-800">FJM 自動化面板</h1>
           </div>
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => setIsImportModalOpen(true)}
-              className="hidden md:flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 px-5 py-2.5 rounded-2xl transition-all border border-transparent hover:border-blue-100"
-            >
-              <FileUp className="w-4 h-4" /> 匯入對照表
+          <div className="flex gap-2">
+            <button onClick={() => setIsImportModalOpen(true)} className="p-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-all shadow-sm border border-transparent hover:border-blue-100">
+              <FileUp className="w-5 h-5" />
             </button>
-            <a href="https://github.com" target="_blank" rel="noreferrer" className="bg-slate-900 text-white p-2.5 rounded-2xl hover:scale-105 transition-all shadow-md">
-              <Github className="w-5 h-5" />
-            </a>
+            <button onClick={handleShare} className="p-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-all shadow-sm border border-transparent hover:border-indigo-100">
+              <Share2 className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </nav>
 
-      <main className="max-w-5xl mx-auto px-6 py-12">
+      <main className="max-w-5xl mx-auto px-6 py-10">
         
-        {/* Step Header */}
-        <div className="flex flex-col md:flex-row gap-8 mb-20 items-stretch">
-          
-          {/* 左側：核心功能卡片 */}
-          <div className="flex-[1.5] bg-white rounded-[3rem] p-10 border-2 border-blue-50 shadow-2xl shadow-blue-100/50 flex flex-col justify-between relative overflow-hidden group">
-            <div className="absolute -top-12 -right-12 w-64 h-64 bg-blue-50 rounded-full opacity-50 group-hover:scale-110 transition-transform duration-700"></div>
-            <div className="relative z-10">
-              <div className="bg-blue-100 text-blue-700 px-4 py-1.5 rounded-full text-xs font-black tracking-widest uppercase mb-8 inline-block">
-                Start Here 第一步
-              </div>
-              <h2 className="text-5xl font-black mb-6 leading-[1.05] tracking-tighter">
-                複製啟動碼<br />
-                <span className="text-blue-600">讓網頁進化</span>
-              </h2>
-              <p className="text-slate-500 text-lg mb-10 leading-relaxed font-medium">
-                這段代碼能將教育局原本繁瑣的查詢網頁，瞬間變身成「鳳甲極速版」。
-              </p>
-            </div>
+        {/* 主要自動化區塊 */}
+        <section className="bg-white rounded-[3rem] p-10 border border-slate-200 shadow-2xl shadow-blue-100/50 mb-16 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-10 opacity-[0.03] group-hover:rotate-12 transition-transform duration-1000">
+            <Zap className="w-64 h-64" />
+          </div>
+
+          <div className="relative z-10 max-w-2xl">
+            <h2 className="text-4xl font-black mb-4 tracking-tight leading-tight text-slate-800">
+              點擊複製，<br /><span className="text-blue-600">自動</span> 為您準備好一切。
+            </h2>
+            <p className="text-slate-500 font-medium mb-10 leading-relaxed">
+              點擊下方按鈕後，請前往教育局官網。代碼已經根據您的對照表自動編譯完成。
+            </p>
             
-            <div className="relative z-10 space-y-4">
+            <div className="flex flex-col gap-4">
               <button 
-                onClick={() => copyToClipboard(bookmarkletCode)}
-                className={`w-full py-6 rounded-3xl font-black text-xl shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-4 ${
-                  copied ? 'bg-green-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700 hover:-translate-y-1 shadow-blue-200'
+                onClick={handleCopy}
+                className={`py-6 rounded-[1.5rem] font-black text-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center gap-4 ${
+                  copied ? 'bg-green-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}
               >
-                {copied ? <Check className="w-7 h-7" /> : <Copy className="w-7 h-7" />}
-                {copied ? '代碼已複製到剪貼簿！' : '複製書籤啟動代碼'}
+                {copied ? <Check className="w-8 h-8" /> : <Zap className="w-8 h-8 fill-white" />}
+                {copied ? '已自動複製！' : '啟動極速 Wi-Fi'}
               </button>
+
+              {/* 複製後的自動引導按鈕 */}
+              {copied && (
+                <a 
+                  href="https://wifi-auth.kh.edu.tw/qrcode_searching" 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="animate-in slide-in-from-top-4 py-5 rounded-[1.5rem] bg-indigo-50 text-indigo-700 font-black text-lg border-2 border-indigo-200 flex items-center justify-center gap-3 hover:bg-indigo-100 transition-all shadow-lg"
+                >
+                  <ExternalLink className="w-6 h-6" /> 立即前往教育局官網執行
+                </a>
+              )}
             </div>
           </div>
+        </section>
 
-          {/* 右側：手機安裝引導 */}
-          <div className="flex-1 bg-slate-900 rounded-[3rem] p-10 text-white flex flex-col shadow-2xl shadow-slate-200">
-             <h3 className="text-2xl font-black mb-8 flex items-center gap-3">
-               <Smartphone className="text-blue-400 w-7 h-7" /> 手機安裝指南
-             </h3>
-             <div className="space-y-10 flex-1">
-               <div className="flex gap-5">
-                 <div className="w-8 h-8 rounded-xl bg-blue-500 flex-shrink-0 flex items-center justify-center text-xs font-black shadow-lg shadow-blue-500/30">1</div>
-                 <div>
-                   <p className="font-bold text-slate-200">建立空書籤</p>
-                   <p className="text-xs text-slate-400 mt-1">在手機瀏覽器隨便把一個網頁「加入收藏」。</p>
-                 </div>
-               </div>
-               <div className="flex gap-5">
-                 <div className="w-8 h-8 rounded-xl bg-blue-500 flex-shrink-0 flex items-center justify-center text-xs font-black shadow-lg shadow-blue-500/30">2</div>
-                 <div>
-                   <p className="font-bold text-slate-200">貼入剛剛複製的代碼</p>
-                   <p className="text-xs text-slate-400 mt-1 italic">編輯書籤：名稱改「啟動」，網址刪除並貼上。</p>
-                 </div>
-               </div>
-               <div className="flex gap-5">
-                 <div className="w-8 h-8 rounded-xl bg-blue-500 flex-shrink-0 flex items-center justify-center text-xs font-black shadow-lg shadow-blue-500/30">3</div>
-                 <div>
-                   <p className="font-bold text-slate-200">開啟官網並執行</p>
-                   <a 
-                    href="https://wifi-auth.kh.edu.tw/qrcode_searching" 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2.5 rounded-xl text-blue-300 text-xs font-bold mt-2 transition-all border border-white/5"
-                   >
-                     前往教育局官網 <ExternalLink className="w-3 h-3" />
-                   </a>
-                 </div>
-               </div>
-             </div>
+        {/* 自動化狀態列 */}
+        <div className="flex flex-wrap gap-4 mb-10">
+          <div className="bg-white border px-5 py-3 rounded-2xl shadow-sm flex items-center gap-3">
+             <Save className="text-green-500 w-5 h-5" />
+             <span className="text-sm font-bold text-slate-600">本地記憶：已自動儲存</span>
           </div>
+          {shared && (
+            <div className="bg-indigo-500 text-white px-5 py-3 rounded-2xl shadow-lg flex items-center gap-3 animate-bounce">
+               <Share2 className="w-5 h-5" />
+               <span className="text-sm font-bold">分享連結已複製！發給同學直接點開即可</span>
+            </div>
+          )}
         </div>
 
-        {/* 對照清單區塊 */}
-        <section className="bg-white rounded-[3.5rem] p-10 md:p-14 border border-slate-200 shadow-sm relative">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-blue-600 text-white px-8 py-3 rounded-2xl font-black tracking-widest shadow-xl">
-             NODES PREVIEW 資料預覽
-          </div>
-          
-          <div className="flex flex-col md:flex-row justify-between items-center gap-8 mb-16 mt-4">
-            <div>
-              <h3 className="text-3xl font-black text-slate-800 mb-2 flex items-center gap-4">
-                <BookOpen className="text-blue-600 w-8 h-8" />
-                全校節點名冊
-              </h3>
-              <p className="text-slate-500 font-bold flex items-center gap-2">
-                目前的代碼包含 <span className="text-blue-600 bg-blue-50 px-2 rounded-lg">{data.length}</span> 個班級節點
-              </p>
-            </div>
-            <div className="w-full md:w-96">
-              <div className="relative group">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5 group-focus-within:text-blue-600 transition-colors" />
-                <input 
-                  type="text" 
-                  placeholder="輸入班級搜尋..." 
-                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-[1.5rem] py-5 pl-14 pr-6 text-slate-900 focus:bg-white focus:border-blue-600 transition-all outline-none font-black text-lg placeholder:font-bold placeholder:text-slate-300 shadow-inner"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
+        {/* 名單搜尋區 */}
+        <div className="bg-white rounded-[2.5rem] p-8 md:p-12 border border-slate-200 shadow-sm relative overflow-hidden">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-8 mb-12">
+            <h3 className="text-2xl font-black text-slate-800 flex items-center gap-3">
+              <BookOpen className="text-blue-600" />
+              節點清單 ({data.length})
+            </h3>
+            <div className="w-full md:w-80 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+              <input 
+                type="text" 
+                placeholder="快速過濾..." 
+                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 pl-12 pr-4 text-slate-900 focus:bg-white focus:border-blue-600 transition-all outline-none font-bold shadow-inner"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
              {filteredData.map(item => (
-               <div key={item.id} className="bg-[#f8fafc] border border-slate-100 rounded-3xl p-6 hover:bg-white hover:border-blue-300 hover:shadow-xl hover:shadow-blue-100 transition-all flex flex-col group active:scale-95 cursor-default">
-                 <div className="flex justify-between items-start mb-2">
-                    <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase tracking-tighter border border-blue-100">
-                      {item.classroom}
-                    </span>
-                    <MousePointer2 className="w-4 h-4 text-slate-200 group-hover:text-blue-400 transition-colors" />
-                 </div>
-                 <div className="flex justify-between items-center mt-2">
-                   <span className="text-xl font-black text-slate-800 font-mono tracking-tight group-hover:text-blue-600 transition-colors">{item.ssid}</span>
+               <div key={item.id} className="bg-[#f8fafc] border border-slate-100 rounded-2xl p-4 transition-all flex flex-col group active:scale-95">
+                 <span className="text-[10px] font-black text-blue-500 tracking-widest uppercase mb-1">{item.classroom}</span>
+                 <div className="flex justify-between items-center">
+                   <span className="text-lg font-black text-slate-700 font-mono tracking-tight">{item.ssid}</span>
                    <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-400 group-hover:translate-x-1 transition-all" />
                  </div>
                </div>
              ))}
-             {filteredData.length === 0 && (
-               <div className="col-span-full py-32 text-center text-slate-400 font-black border-4 border-dashed border-slate-50 rounded-[3rem]">
-                 <HelpCircle className="w-16 h-16 mx-auto mb-6 opacity-10" />
-                 SORRY! 找不到這個班級
-               </div>
-             )}
           </div>
-        </section>
-
-        {/* Mobile Import Button (Visible on mobile only) */}
-        <div className="md:hidden mt-8">
-           <button 
-            onClick={() => setIsImportModalOpen(true)}
-            className="w-full py-4 bg-slate-200 text-slate-700 rounded-2xl font-black flex items-center justify-center gap-2"
-           >
-             <FileUp className="w-5 h-5" /> 匯入自定義資料
-           </button>
         </div>
-
       </main>
 
-      {/* 匯入對話框 Modal */}
+      {/* 匯入 Modal */}
       {isImportModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white rounded-[3rem] w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col animate-in zoom-in-95 duration-200 border-t-8 border-blue-600">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white rounded-[3rem] w-full max-w-xl overflow-hidden shadow-2xl flex flex-col animate-in zoom-in-95 duration-200">
             <div className="p-8 border-b flex justify-between items-center bg-slate-50/50">
               <h4 className="text-2xl font-black flex items-center gap-3 text-slate-800">
-                <TableProperties className="text-blue-600 w-8 h-8" /> 從 Excel 匯入名單
+                <FileUp className="text-blue-600 w-8 h-8" /> Excel 匯入
               </h4>
               <button onClick={() => setIsImportModalOpen(false)} className="bg-slate-200 hover:bg-slate-300 p-2.5 rounded-full transition-all">
                 <X className="w-6 h-6 text-slate-600" />
               </button>
             </div>
-            
-            <div className="p-8 overflow-y-auto max-h-[65vh]">
-              <div className="grid md:grid-cols-2 gap-4 mb-8">
-                <div className="bg-blue-50 p-6 rounded-3xl border border-blue-100">
-                  <p className="font-black text-blue-900 mb-2 flex items-center gap-2 text-sm uppercase tracking-widest">
-                    <MousePointer2 className="w-4 h-4" /> 快速操作
-                  </p>
-                  <p className="text-xs text-blue-700 font-bold leading-relaxed mb-4">
-                    在 Excel 選取「班級」與「代號」兩欄直接複製，貼到下方即可。
-                  </p>
-                  <button onClick={fillExample} className="text-[10px] font-black bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors uppercase">
-                    填入範例資料試試
-                  </button>
-                </div>
-                <div className="bg-slate-900 text-white p-6 rounded-3xl font-mono text-[10px] leading-tight flex flex-col justify-center border-4 border-slate-800">
-                   <p className="text-slate-500 mb-2">// Excel 內容預覽</p>
-                   <p><span className="text-green-400">802班</span> [TAB] <span className="text-yellow-400">101</span></p>
-                   <p><span className="text-green-400">保健中心</span> [TAB] <span className="text-yellow-400">102</span></p>
-                   <p><span className="text-green-400">學務處</span> [TAB] <span className="text-yellow-400">103</span></p>
-                </div>
+            <div className="p-8 overflow-y-auto">
+              <div className="bg-amber-50 border-2 border-amber-100 p-6 rounded-3xl mb-6 text-xs text-amber-800 font-bold leading-relaxed">
+                自動化小技巧：在 Excel 選取兩欄複製後直接貼上，系統會自動幫您轉化為最新的書籤代碼！
               </div>
-              
               <textarea 
-                className={`w-full h-44 p-6 bg-slate-50 rounded-3xl font-mono text-sm outline-none border-2 transition-all shadow-inner placeholder:font-bold placeholder:text-slate-300 ${importError ? 'border-red-400 ring-4 ring-red-50' : 'border-slate-100 focus:border-blue-600 focus:bg-white'}`}
-                placeholder="直接在此 Ctrl+V 貼上 Excel 複製內容..."
+                className={`w-full h-44 p-6 bg-slate-50 rounded-3xl font-mono text-sm outline-none border-2 transition-all shadow-inner ${importError ? 'border-red-400' : 'border-slate-100 focus:border-blue-600 focus:bg-white'}`}
+                placeholder="在此貼上 Excel 內容..."
                 value={importText}
-                onChange={(e) => {
-                  setImportText(e.target.value);
-                  setImportError('');
-                }}
+                onChange={(e) => { setImportText(e.target.value); setImportError(''); }}
               />
-              
-              {importError && (
-                <div className="mt-4 flex items-center gap-3 text-red-600 text-sm font-black bg-red-50 p-5 rounded-2xl border border-red-100 animate-in shake duration-300">
-                  <AlertTriangle className="w-5 h-5 shrink-0" /> {importError}
-                </div>
-              )}
+              {importError && <div className="mt-4 text-red-600 text-sm font-black flex items-center gap-2"><AlertTriangle className="w-5 h-5" /> {importError}</div>}
             </div>
-
-            <div className="p-8 bg-slate-50 border-t flex flex-col sm:flex-row gap-4">
-              <button 
-                onClick={resetToDefault}
-                className="flex-1 py-4 rounded-2xl font-black text-slate-500 border-2 border-slate-200 hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
-              >
-                <RotateCcw className="w-4 h-4" /> 恢復全校預設
-              </button>
-              <button 
-                onClick={handleImport}
-                className="flex-[2] py-4 rounded-2xl font-black text-lg text-white bg-blue-600 hover:bg-blue-700 shadow-2xl shadow-blue-200 transition-all active:scale-95"
-              >
-                確認匯入並更新啟動碼
-              </button>
+            <div className="p-8 bg-slate-50 border-t flex flex-col sm:flex-row gap-3">
+              <button onClick={() => setData(DEFAULT_DATA)} className="flex-1 py-4 rounded-2xl font-black text-slate-500 border-2 border-slate-200 hover:bg-slate-200 transition-all flex items-center justify-center gap-2"><RotateCcw className="w-4 h-4" /> 恢復預設</button>
+              <button onClick={handleImport} className="flex-[2] py-4 rounded-2xl font-black text-lg text-white bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all">儲存並更新代碼</button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Footer */}
-      <footer className="mt-20 py-16 text-center border-t border-slate-100 bg-white">
-         <div className="w-12 h-1 bg-blue-600 mx-auto mb-8 rounded-full"></div>
-         <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.5em] mb-6">鳳甲國中教育科技專案 · FJM EDU TECH</p>
-         <div className="flex justify-center gap-10 text-slate-400 font-black text-xs uppercase tracking-widest">
-           <a href="https://github.com" className="hover:text-blue-600 transition-colors border-b-2 border-transparent hover:border-blue-600 pb-1">GitHub</a>
-           <a href="https://wifi-auth.kh.edu.tw/qrcode_searching" className="hover:text-blue-600 transition-colors border-b-2 border-transparent hover:border-blue-600 pb-1">Official Site</a>
-         </div>
-      </footer>
-
     </div>
   );
 }
