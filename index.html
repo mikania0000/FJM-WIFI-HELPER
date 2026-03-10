@@ -14,8 +14,10 @@
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
         body { 
             font-family: 'Noto Sans TC', sans-serif; 
-            background-color: #f1f5f9;
+            background-color: #e2e8f0; /* 外圍底色 */
             -webkit-tap-highlight-color: transparent;
+            margin: 0;
+            overflow: hidden; /* 防止整個網頁滾動，交給內部容器處理 */
         }
         ::-webkit-scrollbar { display: none; }
         
@@ -31,7 +33,7 @@
     <script type="text/babel">
         const { useState, useMemo, useEffect } = React;
         
-        const APP_VERSION = "v6.1"; // 修正了圖示遺失問題
+        const APP_VERSION = "v6.3";
 
         const Icons = {
             Search: () => <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
@@ -89,7 +91,6 @@
                         setLoading(false);
                     });
                     
-                // 檢查 sessionStorage 中是否已經解鎖過
                 if (sessionStorage.getItem('fjm_setup_unlocked') === 'true') {
                     setIsSetupUnlocked(true);
                 }
@@ -104,7 +105,6 @@
                 setVerifying(true);
                 setVerifyError('');
                 
-                // 呼叫 GAS 的 doGet 進行驗證
                 fetch(`${GAS_URL}?action=verify&pwd=${encodeURIComponent(setupPwdInput)}`)
                     .then(res => res.json())
                     .then(json => {
@@ -123,11 +123,8 @@
                     });
             };
 
-            // 支援 Enter 鍵提交密碼
             const handlePwdKeyDown = (e) => {
-                if (e.key === 'Enter') {
-                    handleVerifyPassword();
-                }
+                if (e.key === 'Enter') handleVerifyPassword();
             };
 
             // --- 產生書籤代碼 (內嵌溫馨卡片設計) ---
@@ -137,7 +134,6 @@
                 return `javascript:void(${coreScript})`;
             }, [data]);
 
-            // 複製外掛代碼
             const handleCopyBookmarklet = () => {
                 const ta = document.createElement("textarea");
                 ta.value = bookmarkletCode;
@@ -149,7 +145,6 @@
                 setTimeout(() => setCopiedBM(false), 3000);
             };
 
-            // 複製個別密碼
             const handleCopyPassword = (pwd, id) => {
                 if (!pwd || pwd === "尚未同步" || pwd === "無資料" || pwd === "讀取中...") return;
                 const cleanPwd = pwd.replace(/\s+/g, '');
@@ -164,200 +159,189 @@
                 setTimeout(() => setCopiedPwdId(null), 1500);
             };
 
-            // 搜尋過濾
             const filteredData = useMemo(() => {
                 const kw = searchTerm.toLowerCase();
                 return searchTerm.trim() ? data.filter(i => (i.s || '').toLowerCase().includes(kw) || (i.c || '').includes(kw)) : data;
             }, [searchTerm, data]);
 
             return (
-                <div className="flex justify-center min-h-screen">
-                    <div className="w-full sm:max-w-md bg-slate-50 min-h-screen relative flex flex-col sm:shadow-2xl sm:border-x border-slate-200">
+                <div className="flex justify-center bg-slate-200 sm:py-8" style={{ height: '100dvh' }}>
+                    {/* APP 容器 - 嚴格限制高度並隱藏溢出，確保底部導航列固定 */}
+                    <div className="w-full sm:max-w-md bg-slate-50 h-full relative flex flex-col sm:shadow-2xl sm:rounded-[2.5rem] border-slate-200 sm:border overflow-hidden">
                         
                         {/* =========================================================
-                            主畫面：查詢頁面
+                            視圖切換區塊 (佔滿剩餘空間)
                         ========================================================= */}
-                        <div className={`flex-1 flex flex-col ${activeTab === 'query' ? 'block animate-fade-in' : 'hidden'}`}>
+                        <div className="flex-1 relative overflow-hidden">
                             
-                            {/* 頂部固定區塊 */}
-                            <div className="sticky top-0 bg-slate-50/90 backdrop-blur-xl z-40 px-5 pt-6 pb-4 border-b border-slate-200/60">
-                                <div className="flex justify-between items-center mb-5">
-                                    <div className="flex items-center gap-3">
-                                        <div className="bg-blue-600 text-white p-2 rounded-xl shadow-lg shadow-blue-200">
-                                            <Icons.Cloud />
+                            {/* --- 1. 查詢頁面 --- */}
+                            <div className={`absolute inset-0 flex flex-col ${activeTab === 'query' ? 'animate-fade-in z-10' : 'hidden z-0'}`}>
+                                {/* 頂部固定區塊 */}
+                                <div className="shrink-0 bg-slate-50/90 backdrop-blur-xl z-40 px-5 pt-6 pb-4 border-b border-slate-200/60">
+                                    <div className="flex justify-between items-center mb-5">
+                                        <div className="flex items-center gap-3">
+                                            <div className="bg-blue-600 text-white p-2 rounded-xl shadow-lg shadow-blue-200">
+                                                <Icons.Cloud />
+                                            </div>
+                                            <div>
+                                                <h1 className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">FJM Cloud</h1>
+                                                <span className="text-[10px] font-black bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md">{APP_VERSION}</span>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h1 className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">FJM Cloud</h1>
-                                            <span className="text-[10px] font-black bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md">{APP_VERSION}</span>
+                                    </div>
+                                    {/* 搜尋框 */}
+                                    <div className="relative">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                            <Icons.Search />
                                         </div>
+                                        <input 
+                                            type="text" 
+                                            placeholder="搜尋班級..." 
+                                            className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-50 outline-none font-bold text-base transition-all shadow-sm text-slate-800 placeholder:text-slate-400"
+                                            value={searchTerm} 
+                                            onChange={e=>setSearchTerm(e.target.value)} 
+                                        />
                                     </div>
                                 </div>
 
-                                {/* 搜尋框 */}
-                                <div className="relative">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                                        <Icons.Search />
-                                    </div>
-                                    <input 
-                                        type="text" 
-                                        placeholder="搜尋班級..." 
-                                        className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-50 outline-none font-bold text-base transition-all shadow-sm text-slate-800 placeholder:text-slate-400"
-                                        value={searchTerm} 
-                                        onChange={e=>setSearchTerm(e.target.value)} 
-                                    />
+                                {/* 列表內容區塊 (獨立滑動) */}
+                                <div className="flex-1 overflow-y-auto px-4 pt-4 pb-6">
+                                    {fetchError && !loading && (
+                                        <div className="mb-4 bg-red-50 p-4 rounded-2xl flex items-start gap-3 border border-red-100">
+                                            <div className="text-red-500 mt-0.5"><Icons.Alert /></div>
+                                            <p className="text-sm text-red-700 font-bold">{fetchError}</p>
+                                        </div>
+                                    )}
+
+                                    {loading ? (
+                                        <div className="py-20 flex flex-col items-center justify-center gap-4 opacity-50">
+                                            <div className="animate-bounce text-blue-500"><Icons.Cloud /></div>
+                                            <span className="text-sm font-bold text-slate-400">正在同步資料庫...</span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col gap-4">
+                                            {filteredData.length > 0 ? (
+                                                filteredData.map(i => {
+                                                    const currentId = i.s;
+                                                    const isCopied = copiedPwdId === currentId;
+                                                    const pwdText = i.p || "尚未讀取";
+                                                    const canCopy = pwdText !== "尚未同步" && pwdText !== "無資料" && pwdText !== "讀取中...";
+
+                                                    return (
+                                                        <div key={currentId} className="bg-white border border-slate-200/60 rounded-[1.5rem] p-4 shadow-sm relative">
+                                                            <div className="flex justify-between items-center mb-3">
+                                                                <span className="bg-blue-50 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-bold tracking-widest">{i.c}</span>
+                                                                <span className="text-slate-700 font-bold font-mono text-base tracking-wider">{currentId}</span>
+                                                            </div>
+                                                            <div className="bg-slate-50 rounded-xl p-3 pr-14 relative min-h-[4.5rem] flex flex-col justify-center">
+                                                                <span className="text-slate-400 text-[10px] font-bold tracking-widest uppercase mb-1">WIFI PASSWORD</span>
+                                                                <span className={`font-mono font-bold text-lg ${canCopy ? 'text-green-600' : 'text-slate-700'}`}>
+                                                                    {canCopy ? '已就緒' : pwdText}
+                                                                </span>
+                                                                {canCopy && (
+                                                                    <button 
+                                                                        onClick={() => handleCopyPassword(pwdText, currentId)}
+                                                                        className={`absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 shadow-sm transition-all active:scale-90 ${isCopied ? 'text-green-500 border-green-300' : 'text-blue-600 hover:bg-blue-50'}`}
+                                                                    >
+                                                                        {isCopied ? <Icons.Check /> : <Icons.Copy />}
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            ) : (
+                                                <div className="py-20 text-center text-slate-400 font-bold flex flex-col items-center">
+                                                    <Icons.Search />
+                                                    <span className="mt-3">找不到班級</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
-                            {/* 列表內容區塊 */}
-                            <div className="flex-1 overflow-y-auto px-4 pt-4 pb-28">
-                                {fetchError && !loading && (
-                                    <div className="mb-4 bg-red-50 p-4 rounded-2xl flex items-start gap-3 border border-red-100">
-                                        <div className="text-red-500 mt-0.5"><Icons.Alert /></div>
-                                        <p className="text-sm text-red-700 font-bold">{fetchError}</p>
-                                    </div>
-                                )}
-
-                                {loading ? (
-                                    <div className="py-20 flex flex-col items-center justify-center gap-4 opacity-50">
-                                        <div className="animate-bounce text-blue-500"><Icons.Cloud /></div>
-                                        <span className="text-sm font-bold text-slate-400">正在同步資料庫...</span>
+                            {/* --- 2. 設定頁面 (獨立滑動) --- */}
+                            <div className={`absolute inset-0 flex flex-col overflow-y-auto px-6 py-8 pb-6 ${activeTab === 'setup' ? 'animate-fade-in z-10' : 'hidden z-0'}`}>
+                                {!isSetupUnlocked ? (
+                                    <div className="flex-1 flex flex-col items-center justify-center h-full pb-10">
+                                        <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-slate-100 w-full max-w-sm text-center">
+                                            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                <Icons.Lock />
+                                            </div>
+                                            <h2 className="text-2xl font-black text-slate-800 mb-2">管理員驗證</h2>
+                                            <p className="text-slate-500 text-sm mb-6">請輸入密碼以進入設定頁面</p>
+                                            <input
+                                                type="password"
+                                                value={setupPwdInput}
+                                                onChange={(e) => setSetupPwdInput(e.target.value)}
+                                                onKeyDown={handlePwdKeyDown}
+                                                className="w-full bg-slate-50 border-2 border-slate-100 focus:border-blue-500 focus:bg-white rounded-2xl py-4 px-4 text-center font-bold tracking-[0.2em] outline-none mb-4 transition-colors"
+                                                placeholder="••••"
+                                            />
+                                            <button
+                                                onClick={handleVerifyPassword}
+                                                disabled={verifying}
+                                                className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl active:scale-95 transition-all shadow-md flex justify-center items-center gap-2"
+                                            >
+                                                {verifying ? '驗證中...' : '解鎖進入'}
+                                            </button>
+                                            {verifyError && (
+                                                <p className="text-red-500 text-xs font-bold mt-4 animate-shake">{verifyError}</p>
+                                            )}
+                                        </div>
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col gap-4">
-                                        {filteredData.length > 0 ? (
-                                            filteredData.map(i => {
-                                                const currentId = i.s;
-                                                const isCopied = copiedPwdId === currentId;
-                                                const pwdText = i.p || "尚未讀取";
-                                                const canCopy = pwdText !== "尚未同步" && pwdText !== "無資料" && pwdText !== "讀取中...";
+                                    <div>
+                                        <h2 className="text-3xl font-black text-slate-800 mb-2">設定</h2>
+                                        <p className="text-slate-500 text-sm font-medium mb-8 leading-relaxed">取得最新版外掛，或管理後端資料。</p>
 
-                                                // 溫馨版卡片設計
-                                                return (
-                                                    <div key={currentId} className="bg-white border border-slate-200/60 rounded-[1.5rem] p-4 shadow-sm relative">
-                                                        <div className="flex justify-between items-center mb-3">
-                                                            <span className="bg-blue-50 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-bold tracking-widest">{i.c}</span>
-                                                            <span className="text-slate-700 font-bold font-mono text-base tracking-wider">{currentId}</span>
-                                                        </div>
-                                                        
-                                                        <div className="bg-slate-50 rounded-xl p-3 pr-14 relative min-h-[4.5rem] flex flex-col justify-center">
-                                                            <span className="text-slate-400 text-[10px] font-bold tracking-widest uppercase mb-1">WIFI PASSWORD</span>
-                                                            <span className={`font-mono font-bold text-lg ${canCopy ? 'text-green-600' : 'text-slate-700'}`}>
-                                                                {canCopy ? '已就緒' : pwdText}
-                                                            </span>
-                                                            
-                                                            {canCopy && (
-                                                                <button 
-                                                                    onClick={() => handleCopyPassword(pwdText, currentId)}
-                                                                    className={`absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 shadow-sm transition-all active:scale-90 ${isCopied ? 'text-green-500 border-green-300' : 'text-blue-600 hover:bg-blue-50'}`}
-                                                                >
-                                                                    {isCopied ? <Icons.Check /> : <Icons.Copy />}
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })
-                                        ) : (
-                                            <div className="py-20 text-center text-slate-400 font-bold flex flex-col items-center">
-                                                <Icons.Search />
-                                                <span className="mt-3">找不到班級</span>
+                                        <button 
+                                            onClick={handleCopyBookmarklet} 
+                                            className={`w-full py-6 rounded-[2rem] font-black text-xl shadow-xl transition-all flex flex-col items-center justify-center gap-2 active:scale-95 mb-8 ${copiedBM ? 'bg-green-500 text-white' : 'bg-blue-600 text-white'}`}
+                                        >
+                                            {copiedBM ? <Icons.Check /> : <Icons.Zap />}
+                                            {copiedBM ? '代碼已複製！' : '複製同步外掛代碼'}
+                                        </button>
+
+                                        <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm mb-8">
+                                            <h3 className="font-black text-slate-800 mb-5 flex items-center gap-2">
+                                                <Icons.Smartphone /> 簡易安裝流程
+                                            </h3>
+                                            <div className="space-y-5 relative before:absolute before:inset-0 before:ml-4 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
+                                                <div className="relative flex items-center gap-4">
+                                                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black text-sm relative z-10 shrink-0">1</div>
+                                                    <p className="text-sm text-slate-600 font-bold">複製上方代碼，將任一網頁加為書籤。</p>
+                                                </div>
+                                                <div className="relative flex items-center gap-4">
+                                                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black text-sm relative z-10 shrink-0">2</div>
+                                                    <p className="text-sm text-slate-600 font-bold">編輯該書籤，將網址欄清空並 <span className="text-blue-600 underline">貼上代碼</span>。</p>
+                                                </div>
+                                                <div className="relative flex items-center gap-4">
+                                                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-black text-sm relative z-10 shrink-0">3</div>
+                                                    <p className="text-sm text-slate-600 font-bold">
+                                                        在 <a href="https://wifi-auth.kh.edu.tw/qrcode_searching" target="_blank" className="text-indigo-500 underline flex items-center gap-1 inline-flex">教育局網頁 <Icons.ExternalLink /></a> 點擊書籤執行同步。
+                                                    </p>
+                                                </div>
                                             </div>
-                                        )}
+                                        </div>
+
+                                        <a 
+                                            href="https://docs.google.com/spreadsheets/d/1LomQabtIlrmMnT0TxKCAectvxiINlMDnEc6QvZCEMbk/edit" 
+                                            target="_blank" 
+                                            className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-black py-4 rounded-2xl flex justify-center items-center gap-2 transition-colors border border-slate-200"
+                                        >
+                                            <Icons.Database /> 編輯班級代號 / 密碼
+                                        </a>
                                     </div>
                                 )}
                             </div>
                         </div>
 
                         {/* =========================================================
-                            副畫面：極簡設定頁面 (含密碼鎖)
+                            底部導航列 (獨立區塊，永遠固定在最下方)
                         ========================================================= */}
-                        <div className={`flex-1 flex flex-col px-6 py-8 pb-28 overflow-y-auto ${activeTab === 'setup' ? 'block animate-fade-in' : 'hidden'}`}>
-                            {!isSetupUnlocked ? (
-                                // 密碼驗證畫面
-                                <div className="flex-1 flex flex-col items-center justify-center h-full pt-10">
-                                    <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-slate-100 w-full max-w-sm text-center">
-                                        <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                                            <Icons.Lock />
-                                        </div>
-                                        <h2 className="text-2xl font-black text-slate-800 mb-2">管理員驗證</h2>
-                                        <p className="text-slate-500 text-sm mb-6">請輸入密碼以進入安裝設定</p>
-                                        
-                                        <input
-                                            type="password"
-                                            value={setupPwdInput}
-                                            onChange={(e) => setSetupPwdInput(e.target.value)}
-                                            onKeyDown={handlePwdKeyDown}
-                                            className="w-full bg-slate-50 border-2 border-slate-100 focus:border-blue-500 focus:bg-white rounded-2xl py-4 px-4 text-center font-bold tracking-[0.2em] outline-none mb-4 transition-colors"
-                                            placeholder="••••"
-                                        />
-                                        
-                                        <button
-                                            onClick={handleVerifyPassword}
-                                            disabled={verifying}
-                                            className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl active:scale-95 transition-all shadow-md flex justify-center items-center gap-2"
-                                        >
-                                            {verifying ? '驗證中...' : '解鎖進入'}
-                                        </button>
-                                        
-                                        {verifyError && (
-                                            <p className="text-red-500 text-xs font-bold mt-4 animate-shake">{verifyError}</p>
-                                        )}
-                                    </div>
-                                </div>
-                            ) : (
-                                // 解鎖後的設定內容
-                                <div>
-                                    <h2 className="text-3xl font-black text-slate-800 mb-2">同步設定</h2>
-                                    <p className="text-slate-500 text-sm font-medium mb-8 leading-relaxed">取得最新版外掛，或管理後端資料。</p>
-
-                                    {/* 巨大複製按鈕 */}
-                                    <button 
-                                        onClick={handleCopyBookmarklet} 
-                                        className={`w-full py-6 rounded-[2rem] font-black text-xl shadow-xl transition-all flex flex-col items-center justify-center gap-2 active:scale-95 mb-8 ${copiedBM ? 'bg-green-500 text-white' : 'bg-blue-600 text-white'}`}
-                                    >
-                                        {copiedBM ? <Icons.Check /> : <Icons.Zap />}
-                                        {copiedBM ? '代碼已複製！' : '複製同步外掛代碼'}
-                                    </button>
-
-                                    {/* 極簡 3 步驟 */}
-                                    <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm mb-8">
-                                        <h3 className="font-black text-slate-800 mb-5 flex items-center gap-2">
-                                            <Icons.Smartphone /> 簡易安裝流程
-                                        </h3>
-                                        <div className="space-y-5 relative before:absolute before:inset-0 before:ml-4 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
-                                            <div className="relative flex items-center gap-4">
-                                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black text-sm relative z-10 shrink-0">1</div>
-                                                <p className="text-sm text-slate-600 font-bold">複製上方代碼，將任一網頁加為書籤。</p>
-                                            </div>
-                                            <div className="relative flex items-center gap-4">
-                                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black text-sm relative z-10 shrink-0">2</div>
-                                                <p className="text-sm text-slate-600 font-bold">編輯該書籤，將網址欄清空並 <span className="text-blue-600 underline">貼上代碼</span>。</p>
-                                            </div>
-                                            <div className="relative flex items-center gap-4">
-                                                <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-black text-sm relative z-10 shrink-0">3</div>
-                                                <p className="text-sm text-slate-600 font-bold">
-                                                    在 <a href="https://wifi-auth.kh.edu.tw/qrcode_searching" target="_blank" className="text-indigo-500 underline flex items-center gap-1 inline-flex">教育局網頁 <Icons.ExternalLink /></a> 點擊書籤執行同步。
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* 編輯班級代號按鈕 */}
-                                    <a 
-                                        href="https://docs.google.com/spreadsheets/d/1LomQabtIlrmMnT0TxKCAectvxiINlMDnEc6QvZCEMbk/edit" 
-                                        target="_blank" 
-                                        className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-black py-4 rounded-2xl flex justify-center items-center gap-2 transition-colors border border-slate-200"
-                                    >
-                                        <Icons.Database /> 編輯班級代號 / 密碼
-                                    </a>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* =========================================================
-                            底部導航列 (Bottom Navigation)
-                        ========================================================= */}
-                        <div className="fixed sm:absolute bottom-0 left-0 w-full bg-white border-t border-slate-200 pb-safe pt-2 px-6 flex justify-around items-center z-50">
+                        <div className="shrink-0 w-full bg-white border-t border-slate-200 pt-2 flex justify-around items-center z-50" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))' }}>
                             <button 
                                 onClick={() => setActiveTab('query')} 
                                 className={`flex flex-col items-center gap-1.5 p-3 px-8 transition-colors ${activeTab === 'query' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
@@ -373,7 +357,6 @@
                                 <span className="text-[10px] font-black tracking-widest">設定</span>
                             </button>
                         </div>
-                        <div className="h-safe bg-white"></div>
 
                     </div>
                 </div>
