@@ -2,8 +2,8 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>鳳甲國中 Wi-Fi 雲端直讀面板</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>FJM Cloud Wi-Fi</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -12,94 +12,132 @@
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
-        body { font-family: 'Noto Sans TC', sans-serif; }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        body { 
+            font-family: 'Noto Sans TC', sans-serif; 
+            background-color: #f1f5f9;
+            -webkit-tap-highlight-color: transparent;
+        }
+        ::-webkit-scrollbar { display: none; }
         
-        .animate-shake {
-            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-        }
-        @keyframes shake {
-            10%, 90% { transform: translate3d(-1px, 0, 0); }
-            20%, 80% { transform: translate3d(2px, 0, 0); }
-            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-            40%, 60% { transform: translate3d(4px, 0, 0); }
-        }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-3px, 0, 0); } 40%, 60% { transform: translate3d(3px, 0, 0); } }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900">
+<body>
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useMemo, useEffect } = React;
         
-        // --- 版本號定義 ---
-        const APP_VERSION = "v4.0";
+        const APP_VERSION = "v6.1"; // 修正了圖示遺失問題
 
-        // --- 內嵌 SVG 圖示 ---
         const Icons = {
-            Wifi: () => <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/></svg>,
-            Smartphone: () => <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>,
-            Copy: () => <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>,
-            Check: () => <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>,
-            Search: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
-            Zap: () => <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.7l11.4-12.2c.4-.4 1-.1 1 .4l-2 7.1H20l-11.4 12.2c-.4.4-1 .1-1-.4l2-7.1H4z"/></svg>,
-            Cloud: () => <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19c2.5 0 4.5-2 4.5-4.5 0-2.3-1.7-4.1-3.9-4.5a7 7 0 1 0-13.4 3C2.8 13.4 1 15.1 1 17.2 1 19.3 2.7 21 4.8 21h12.7c.3 0 .6-.1.9-.1V19z"/></svg>,
-            Database: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>,
-            TriangleAlert: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>,
-            BookOpen: () => <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>,
-            HelpCircle: () => <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>,
-            ExternalLink: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+            Search: () => <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
+            Copy: () => <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>,
+            Check: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>,
+            Zap: () => <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.7l11.4-12.2c.4-.4 1-.1 1 .4l-2 7.1H20l-11.4 12.2c-.4.4-1 .1-1-.4l2-7.1H4z"/></svg>,
+            Cloud: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19c2.5 0 4.5-2 4.5-4.5 0-2.3-1.7-4.1-3.9-4.5a7 7 0 1 0-13.4 3C2.8 13.4 1 15.1 1 17.2 1 19.3 2.7 21 4.8 21h12.7c.3 0 .6-.1.9-.1V19z"/></svg>,
+            Database: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>,
+            Settings: () => <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>,
+            Alert: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>,
+            ExternalLink: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>,
+            Lock: () => <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+            Smartphone: () => <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
         };
 
-        // 這是作為介面尚未連上雲端時的最低限度版面
-        const FALLBACK_DATA = [{ c: '載入中', s: 'FJM-載入中', p: '載入中' }];
+        const FALLBACK_DATA = [{ c: '載入中', s: '連線中...', p: '載入中' }];
 
-        // Google Apps Script 網址 (請確認您已發佈為最新版本)
+        // Google Apps Script 網址
         const GAS_URL = "https://script.google.com/macros/s/AKfycby5AmcAwSnAOE-Khz9t2dCIzyHugcADSMKJYk4WQGbc3srurSMxIR8DcxNjd6tSchRy/exec";
 
         function App() {
-            const [activeTab, setActiveTab] = useState('query'); // 'query' | 'tutorial'
+            const [activeTab, setActiveTab] = useState('query');
             const [data, setData] = useState(FALLBACK_DATA);
             const [loading, setLoading] = useState(true);
             const [copiedBM, setCopiedBM] = useState(false);
             const [copiedPwdId, setCopiedPwdId] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
             const [fetchError, setFetchError] = useState('');
+            
+            // 密碼保護相關 State
+            const [isSetupUnlocked, setIsSetupUnlocked] = useState(false);
+            const [setupPwdInput, setSetupPwdInput] = useState('');
+            const [verifying, setVerifying] = useState(false);
+            const [verifyError, setVerifyError] = useState('');
 
-            // 網頁載入時從試算表抓取資料 (資料是根據「班級代號」動態生成的)
+            // 初始化讀取資料
             useEffect(() => {
                 fetch(GAS_URL)
                     .then(res => {
-                        if (!res.ok) throw new Error("網路請求失敗，可能遭到阻擋");
+                        if (!res.ok) throw new Error("網路請求失敗");
                         return res.json();
                     })
                     .then(json => {
                         if(json.success && json.data && json.data.length > 0) {
                             setData(json.data);
                         } else {
-                            setFetchError(json.error || "雲端資料為空。請確認試算表有建立「班級代號」分頁。");
+                            setFetchError(json.error || "無資料");
                             setData([]); 
                         }
                         setLoading(false);
                     })
                     .catch(err => {
-                        console.log("連線限制，載入備用名單", err);
                         setData(FALLBACK_DATA);
-                        setFetchError("無法連線至雲端資料庫，請檢查 CORS 或重新部署 Apps Script。");
+                        setFetchError("離線模式");
                         setLoading(false);
                     });
+                    
+                // 檢查 sessionStorage 中是否已經解鎖過
+                if (sessionStorage.getItem('fjm_setup_unlocked') === 'true') {
+                    setIsSetupUnlocked(true);
+                }
             }, []);
 
-            // --- 產生書籤代碼 (完全隱藏黑點，加入版本號標籤) ---
+            // 驗證密碼
+            const handleVerifyPassword = () => {
+                if (!setupPwdInput) {
+                    setVerifyError('請輸入密碼');
+                    return;
+                }
+                setVerifying(true);
+                setVerifyError('');
+                
+                // 呼叫 GAS 的 doGet 進行驗證
+                fetch(`${GAS_URL}?action=verify&pwd=${encodeURIComponent(setupPwdInput)}`)
+                    .then(res => res.json())
+                    .then(json => {
+                        if (json.success && json.match) {
+                            setIsSetupUnlocked(true);
+                            sessionStorage.setItem('fjm_setup_unlocked', 'true');
+                            setSetupPwdInput('');
+                        } else {
+                            setVerifyError('密碼錯誤，或試算表未設定密碼');
+                        }
+                        setVerifying(false);
+                    })
+                    .catch(err => {
+                        setVerifyError('連線錯誤，請稍後再試');
+                        setVerifying(false);
+                    });
+            };
+
+            // 支援 Enter 鍵提交密碼
+            const handlePwdKeyDown = (e) => {
+                if (e.key === 'Enter') {
+                    handleVerifyPassword();
+                }
+            };
+
+            // --- 產生書籤代碼 (內嵌溫馨卡片設計) ---
             const bookmarkletCode = useMemo(() => {
                 const compact = data.map(i => ({ s: i.s, c: i.c }));
-                const coreScript = `(async function(){if(document.getElementById('fjm-root'))return;function l(s,g){return new Promise(r=>{if(window[g])return r();const t=document.createElement('script');t.src=s;t.onload=r;document.head.appendChild(t)})};await l('https://cdn.tailwindcss.com','tailwind');await l('https://unpkg.com/react@18/umd/react.production.min.js','React');await l('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js','ReactDOM');const rootDiv=document.createElement('div');rootDiv.id='fjm-root';rootDiv.style.cssText='position:fixed;inset:0;z-index:9999999;background:#f8fafc;overflow-y:auto;';document.body.appendChild(rootDiv);const{useState,useEffect,useMemo,createElement:e}=React;const DATA=${JSON.stringify(compact)};const GAS_LINK="${GAS_URL}";const APP_VER="${APP_VERSION}";const App=()=>{const[s,setS]=useState('');const[c,setC]=useState(null);const[d,setD]=useState(DATA.map(x=>({...x,p:"讀取中..."})));const[ld,setLd]=useState(true);const[err,setErr]=useState(null);const[st,setSt]=useState('idle');useEffect(()=>{fetch(GAS_LINK).then(r=>{if(!r.ok)throw new Error();return r.json()}).then(j=>{if(j.success&&j.data&&j.data.length>0){setD(j.data)}else{setD(DATA.map(x=>({...x,p:"暫無雲端資料"})))}setLd(false)}).catch(()=>{setD(DATA.map(x=>({...x,p:"連線遭擋或超時"})));setLd(false)})},[]);const doSync=async()=>{setSt('syncing');const res=[["教室","SSID","密碼","更新時間"]];for(const a of DATA){try{const r=await fetch("/api/qrcode_searching?ssid="+a.s);const j=await r.json();if(j.success&&j.data&&j.data.length>0){const p=j.data[0].ss_password.replace(/(.{4})/g,'$1 ').trim();res.push([a.c,a.s,p,new Date().toLocaleString()]);}}catch(e){}}try{await fetch(GAS_LINK,{method:"POST",mode:"no-cors",body:JSON.stringify({data:res})});setSt('done');setTimeout(()=>{setSt('idle');fetch(GAS_LINK).then(r=>r.json()).then(j=>{if(j.success)setD(j.data)})},3000)}catch(e){setSt('error')}};const f=useMemo(()=>!s.trim()?d:d.filter(i=>i.s.toLowerCase().includes(s.toLowerCase())||i.c.includes(s)),[s,d]);return e('div',{className:"p-6 max-w-4xl mx-auto font-sans text-slate-900"},e('div',{className:"flex flex-wrap justify-between items-center gap-4 mb-8"},e('h1',{className:"text-3xl font-black text-blue-600 flex items-center gap-3"},"FJM 雲端直讀版",e('span',{className:"text-sm bg-blue-100 text-blue-600 px-3 py-1 rounded-lg tracking-widest font-bold"},APP_VER)),e('div',{className:"flex gap-3"},e('button',{onClick:doSync,className:"px-6 py-3 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white rounded-xl font-bold text-base shadow-md"},st==='syncing'?'⏳ 正在抓取中...':st==='done'?'✅ 已推送至試算表':st==='error'?'❌ 同步失敗':'☁️ 同步至試算表'),e('button',{onClick:()=>document.getElementById('fjm-root').remove(),className:"text-slate-500 font-bold px-4 py-3 hover:bg-slate-200 rounded-xl text-base"},"關閉 ✕"))),e('input',{className:"w-full p-5 rounded-2xl border-2 mb-8 shadow-sm outline-none focus:border-blue-500 font-bold text-xl text-slate-800",placeholder:"搜尋班級...",value:s,onChange:ev=>setS(ev.target.value)}),err?e('div',{className:"mb-6 text-lg font-bold text-red-500 bg-red-50 p-4 rounded-2xl border border-red-100"},err):null,ld?e('div',{className:"text-center py-10 font-bold text-blue-500 animate-pulse text-2xl"},"☁️ 正在從 Google 試算表載入資料..."):e('div',{className:"grid gap-6 md:grid-cols-2 font-sans pr-4"},f.map(i=>{const canCopy=i.p&&i.p!=="尚未同步"&&i.p!=="無資料"&&i.p!=="讀取中..."&&i.p!=="暫無雲端資料"&&i.p!=="連線遭擋或超時";const isCopied=c===i.s;const cp=(p)=>{if(!canCopy)return;const clean=p.replace(/\\s+/g,'');const ta=document.createElement('textarea');ta.value=clean;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);setC(i.s);setTimeout(()=>setC(null),2000)};return e('div',{key:i.s,className:"bg-white border border-slate-200 rounded-[1.5rem] p-5 hover:shadow-lg transition-all relative flex flex-col"},e('div',{className:"flex justify-between items-center mb-4"},e('span',{className:"text-blue-600 bg-blue-50 px-3 py-1 rounded-lg font-bold text-sm tracking-wider"},i.c),e('span',{className:"text-slate-400 font-bold font-mono tracking-wider text-lg"},i.s)),e('div',{className:"bg-slate-50/80 border border-slate-100 rounded-2xl p-4 pr-16 relative flex flex-col justify-center min-h-[5.5rem]"},e('span',{className:"text-slate-400 text-xs font-bold tracking-widest uppercase mb-1"},"PASSWORD"),e('span',{className:"flex items-center h-8 "+(canCopy?'text-green-600 font-bold text-sm tracking-widest':'text-slate-400 text-sm font-bold tracking-normal')},canCopy?'已就緒':i.p),canCopy&&e('button',{onClick:()=>cp(i.p),className:"absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-xl bg-white border border-slate-100 shadow-sm transition-all active:scale-90 "+(isCopied?'text-green-500 border-green-200 shadow-green-100':'text-blue-600 hover:bg-blue-50 hover:border-blue-200')},isCopied?e('svg',{xmlns:"http://www.w3.org/2000/svg",width:"24",height:"24",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"3",strokeLinecap:"round",strokeLinejoin:"round"},e('path',{d:"M20 6L9 17l-5-5"})):e('svg',{xmlns:"http://www.w3.org/2000/svg",width:"24",height:"24",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"2",strokeLinecap:"round",strokeLinejoin:"round"},e('rect',{width:"14",height:"14",x:"8",y:"8",rx:"2",ry:"2"}),e('path',{d:"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"})))))})))};ReactDOM.createRoot(rootDiv).render(e(App))})()`;
+                const coreScript = `(async function(){if(document.getElementById('fjm-root'))return;function l(s,g){return new Promise(r=>{if(window[g])return r();const t=document.createElement('script');t.src=s;t.onload=r;document.head.appendChild(t)})};await l('https://cdn.tailwindcss.com','tailwind');await l('https://unpkg.com/react@18/umd/react.production.min.js','React');await l('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js','ReactDOM');const rootDiv=document.createElement('div');rootDiv.id='fjm-root';rootDiv.style.cssText='position:fixed;inset:0;z-index:9999999;background:#f1f5f9;overflow-y:auto;';document.body.appendChild(rootDiv);const{useState,useEffect,useMemo,createElement:e}=React;const DATA=${JSON.stringify(compact)};const GAS_LINK="${GAS_URL}";const APP_VER="${APP_VERSION}";const App=()=>{const[s,setS]=useState('');const[c,setC]=useState(null);const[d,setD]=useState(DATA.map(x=>({...x,p:"讀取中..."})));const[ld,setLd]=useState(true);const[err,setErr]=useState(null);const[st,setSt]=useState('idle');useEffect(()=>{fetch(GAS_LINK).then(r=>{if(!r.ok)throw new Error();return r.json()}).then(j=>{if(j.success&&j.data&&j.data.length>0){setD(j.data)}else{setD(DATA.map(x=>({...x,p:"暫無雲端資料"})))}setLd(false)}).catch(()=>{setD(DATA.map(x=>({...x,p:"連線遭擋"})));setLd(false)})},[]);const doSync=async()=>{setSt('syncing');const res=[["教室","SSID","密碼","更新時間"]];for(const a of DATA){try{const r=await fetch("/api/qrcode_searching?ssid="+a.s);const j=await r.json();if(j.success&&j.data&&j.data.length>0){const p=j.data[0].ss_password.replace(/(.{4})/g,'$1 ').trim();res.push([a.c,a.s,p,new Date().toLocaleString()]);}}catch(e){}}try{await fetch(GAS_LINK,{method:"POST",mode:"no-cors",body:JSON.stringify({data:res})});setSt('done');setTimeout(()=>{setSt('idle');fetch(GAS_LINK).then(r=>r.json()).then(j=>{if(j.success)setD(j.data)})},3000)}catch(e){setSt('error')}};const f=useMemo(()=>!s.trim()?d:d.filter(i=>i.s.toLowerCase().includes(s.toLowerCase())||i.c.includes(s)),[s,d]);return e('div',{className:"max-w-md mx-auto bg-slate-50 min-h-screen flex flex-col font-sans"},e('div',{className:"p-5 bg-white border-b sticky top-0 z-10 shadow-sm"},e('div',{className:"flex justify-between items-center mb-4"},e('h1',{className:"text-2xl font-black text-slate-800 flex items-center gap-2"},"FJM 同步",e('span',{className:"text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-md"},APP_VER)),e('button',{onClick:()=>document.getElementById('fjm-root').remove(),className:"text-slate-400 font-bold p-2 text-sm bg-slate-100 hover:bg-slate-200 rounded-full w-8 h-8 flex items-center justify-center transition-colors"},"✕")),e('button',{onClick:doSync,className:"w-full py-4 bg-indigo-600 active:bg-indigo-700 text-white rounded-2xl font-bold text-lg shadow-lg shadow-indigo-200 mb-4 transition-all"},st==='syncing'?'⏳ 正在瘋狂抓取...':st==='done'?'✅ 推送成功！':st==='error'?'❌ 失敗，請重試':'☁️ 一鍵同步至試算表'),e('input',{className:"w-full p-4 rounded-xl bg-slate-100 focus:bg-white border-2 border-transparent focus:border-blue-500 font-bold outline-none",placeholder:"搜尋班級...",value:s,onChange:ev=>setS(ev.target.value)})),e('div',{className:"p-4 pb-20 flex flex-col gap-3"},f.map(i=>{const cp=i.p&&i.p!=="尚未同步"&&i.p!=="無資料"&&i.p!=="讀取中..."&&i.p!=="暫無雲端資料"&&i.p!=="連線遭擋";const isC=c===i.s;const doC=()=>{if(!cp)return;const ta=document.createElement('textarea');ta.value=i.p.replace(/\\s+/g,'');document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);setC(i.s);setTimeout(()=>setC(null),2000)};return e('div',{key:i.s,className:"bg-white border border-slate-200/60 rounded-[1.5rem] p-4 shadow-sm relative"},e('div',{className:"flex justify-between items-center mb-3"},e('span',{className:"bg-blue-50 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-bold tracking-widest"},i.c),e('span',{className:"text-slate-700 font-bold font-mono text-base tracking-wider"},i.s)),e('div',{className:"bg-slate-50 rounded-xl p-3 pr-14 relative min-h-[4.5rem] flex flex-col justify-center"},e('span',{className:"text-slate-400 text-[10px] font-bold tracking-widest uppercase mb-1"},"WIFI PASSWORD"),e('span',{className:"font-mono font-bold text-lg "+(cp?'text-green-600':'text-slate-700')},cp?'已就緒':i.p),cp&&e('button',{onClick:doC,className:"absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 shadow-sm transition-all "+(isC?'text-green-500 border-green-300':'text-blue-600 hover:bg-blue-50 active:scale-90')},isC?'✔':'📋')))})))};ReactDOM.createRoot(rootDiv).render(e(App))})()`;
                 return `javascript:void(${coreScript})`;
             }, [data]);
 
+            // 複製外掛代碼
             const handleCopyBookmarklet = () => {
                 const ta = document.createElement("textarea");
                 ta.value = bookmarkletCode;
@@ -108,11 +146,12 @@
                 document.execCommand('copy');
                 document.body.removeChild(ta);
                 setCopiedBM(true);
-                setTimeout(() => setCopiedBM(false), 5000);
+                setTimeout(() => setCopiedBM(false), 3000);
             };
 
+            // 複製個別密碼
             const handleCopyPassword = (pwd, id) => {
-                if (!pwd || pwd === "尚未同步" || pwd === "無資料") return;
+                if (!pwd || pwd === "尚未同步" || pwd === "無資料" || pwd === "讀取中...") return;
                 const cleanPwd = pwd.replace(/\s+/g, '');
                 const ta = document.createElement("textarea");
                 ta.value = cleanPwd;
@@ -122,208 +161,221 @@
                 document.body.removeChild(ta);
                 
                 setCopiedPwdId(id);
-                setTimeout(() => setCopiedPwdId(null), 2000);
+                setTimeout(() => setCopiedPwdId(null), 1500);
             };
 
+            // 搜尋過濾
             const filteredData = useMemo(() => {
                 const kw = searchTerm.toLowerCase();
                 return searchTerm.trim() ? data.filter(i => (i.s || '').toLowerCase().includes(kw) || (i.c || '').includes(kw)) : data;
             }, [searchTerm, data]);
 
             return (
-                <div className="min-h-screen w-full flex flex-col items-center bg-slate-50 font-sans pb-20">
-                    
-                    <nav className="w-full bg-white border-b px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
-                        <div className="flex items-center gap-4">
-                            <div className="text-blue-600 bg-blue-50 p-2 rounded-xl"><Icons.Cloud /></div>
-                            <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <h1 className="text-2xl font-black text-slate-800 tracking-tighter uppercase leading-none">FJM Cloud</h1>
-                                    <span className="text-[10px] font-black bg-blue-100 text-blue-600 px-2 py-0.5 rounded-md tracking-wider">{APP_VERSION}</span>
+                <div className="flex justify-center min-h-screen">
+                    <div className="w-full sm:max-w-md bg-slate-50 min-h-screen relative flex flex-col sm:shadow-2xl sm:border-x border-slate-200">
+                        
+                        {/* =========================================================
+                            主畫面：查詢頁面
+                        ========================================================= */}
+                        <div className={`flex-1 flex flex-col ${activeTab === 'query' ? 'block animate-fade-in' : 'hidden'}`}>
+                            
+                            {/* 頂部固定區塊 */}
+                            <div className="sticky top-0 bg-slate-50/90 backdrop-blur-xl z-40 px-5 pt-6 pb-4 border-b border-slate-200/60">
+                                <div className="flex justify-between items-center mb-5">
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-blue-600 text-white p-2 rounded-xl shadow-lg shadow-blue-200">
+                                            <Icons.Cloud />
+                                        </div>
+                                        <div>
+                                            <h1 className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">FJM Cloud</h1>
+                                            <span className="text-[10px] font-black bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md">{APP_VERSION}</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <p className="text-sm font-bold text-blue-600 tracking-widest uppercase mt-1">Wi-Fi 動態查詢系統</p>
+
+                                {/* 搜尋框 */}
+                                <div className="relative">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                        <Icons.Search />
+                                    </div>
+                                    <input 
+                                        type="text" 
+                                        placeholder="搜尋班級..." 
+                                        className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-50 outline-none font-bold text-base transition-all shadow-sm text-slate-800 placeholder:text-slate-400"
+                                        value={searchTerm} 
+                                        onChange={e=>setSearchTerm(e.target.value)} 
+                                    />
+                                </div>
+                            </div>
+
+                            {/* 列表內容區塊 */}
+                            <div className="flex-1 overflow-y-auto px-4 pt-4 pb-28">
+                                {fetchError && !loading && (
+                                    <div className="mb-4 bg-red-50 p-4 rounded-2xl flex items-start gap-3 border border-red-100">
+                                        <div className="text-red-500 mt-0.5"><Icons.Alert /></div>
+                                        <p className="text-sm text-red-700 font-bold">{fetchError}</p>
+                                    </div>
+                                )}
+
+                                {loading ? (
+                                    <div className="py-20 flex flex-col items-center justify-center gap-4 opacity-50">
+                                        <div className="animate-bounce text-blue-500"><Icons.Cloud /></div>
+                                        <span className="text-sm font-bold text-slate-400">正在同步資料庫...</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-4">
+                                        {filteredData.length > 0 ? (
+                                            filteredData.map(i => {
+                                                const currentId = i.s;
+                                                const isCopied = copiedPwdId === currentId;
+                                                const pwdText = i.p || "尚未讀取";
+                                                const canCopy = pwdText !== "尚未同步" && pwdText !== "無資料" && pwdText !== "讀取中...";
+
+                                                // 溫馨版卡片設計
+                                                return (
+                                                    <div key={currentId} className="bg-white border border-slate-200/60 rounded-[1.5rem] p-4 shadow-sm relative">
+                                                        <div className="flex justify-between items-center mb-3">
+                                                            <span className="bg-blue-50 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-bold tracking-widest">{i.c}</span>
+                                                            <span className="text-slate-700 font-bold font-mono text-base tracking-wider">{currentId}</span>
+                                                        </div>
+                                                        
+                                                        <div className="bg-slate-50 rounded-xl p-3 pr-14 relative min-h-[4.5rem] flex flex-col justify-center">
+                                                            <span className="text-slate-400 text-[10px] font-bold tracking-widest uppercase mb-1">WIFI PASSWORD</span>
+                                                            <span className={`font-mono font-bold text-lg ${canCopy ? 'text-green-600' : 'text-slate-700'}`}>
+                                                                {canCopy ? '已就緒' : pwdText}
+                                                            </span>
+                                                            
+                                                            {canCopy && (
+                                                                <button 
+                                                                    onClick={() => handleCopyPassword(pwdText, currentId)}
+                                                                    className={`absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 shadow-sm transition-all active:scale-90 ${isCopied ? 'text-green-500 border-green-300' : 'text-blue-600 hover:bg-blue-50'}`}
+                                                                >
+                                                                    {isCopied ? <Icons.Check /> : <Icons.Copy />}
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="py-20 text-center text-slate-400 font-bold flex flex-col items-center">
+                                                <Icons.Search />
+                                                <span className="mt-3">找不到班級</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
-                        <a href="https://docs.google.com/spreadsheets/d/1LomQabtIlrmMnT0TxKCAectvxiINlMDnEc6QvZCEMbk/edit" target="_blank" className="flex items-center gap-2 p-3 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-all shadow-sm text-base font-bold border border-slate-200">
-                            <Icons.Database /> <span className="hidden sm:inline">編輯班級代號</span>
-                        </a>
-                    </nav>
 
-                    <main className="w-full max-w-5xl px-4 md:px-6 py-8">
-                        
-                        <div className="flex space-x-3 mb-10 bg-slate-200/50 p-2 rounded-2xl w-full max-w-lg mx-auto">
+                        {/* =========================================================
+                            副畫面：極簡設定頁面 (含密碼鎖)
+                        ========================================================= */}
+                        <div className={`flex-1 flex flex-col px-6 py-8 pb-28 overflow-y-auto ${activeTab === 'setup' ? 'block animate-fade-in' : 'hidden'}`}>
+                            {!isSetupUnlocked ? (
+                                // 密碼驗證畫面
+                                <div className="flex-1 flex flex-col items-center justify-center h-full pt-10">
+                                    <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-slate-100 w-full max-w-sm text-center">
+                                        <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <Icons.Lock />
+                                        </div>
+                                        <h2 className="text-2xl font-black text-slate-800 mb-2">管理員驗證</h2>
+                                        <p className="text-slate-500 text-sm mb-6">請輸入密碼以進入安裝設定</p>
+                                        
+                                        <input
+                                            type="password"
+                                            value={setupPwdInput}
+                                            onChange={(e) => setSetupPwdInput(e.target.value)}
+                                            onKeyDown={handlePwdKeyDown}
+                                            className="w-full bg-slate-50 border-2 border-slate-100 focus:border-blue-500 focus:bg-white rounded-2xl py-4 px-4 text-center font-bold tracking-[0.2em] outline-none mb-4 transition-colors"
+                                            placeholder="••••"
+                                        />
+                                        
+                                        <button
+                                            onClick={handleVerifyPassword}
+                                            disabled={verifying}
+                                            className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl active:scale-95 transition-all shadow-md flex justify-center items-center gap-2"
+                                        >
+                                            {verifying ? '驗證中...' : '解鎖進入'}
+                                        </button>
+                                        
+                                        {verifyError && (
+                                            <p className="text-red-500 text-xs font-bold mt-4 animate-shake">{verifyError}</p>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                // 解鎖後的設定內容
+                                <div>
+                                    <h2 className="text-3xl font-black text-slate-800 mb-2">同步設定</h2>
+                                    <p className="text-slate-500 text-sm font-medium mb-8 leading-relaxed">取得最新版外掛，或管理後端資料。</p>
+
+                                    {/* 巨大複製按鈕 */}
+                                    <button 
+                                        onClick={handleCopyBookmarklet} 
+                                        className={`w-full py-6 rounded-[2rem] font-black text-xl shadow-xl transition-all flex flex-col items-center justify-center gap-2 active:scale-95 mb-8 ${copiedBM ? 'bg-green-500 text-white' : 'bg-blue-600 text-white'}`}
+                                    >
+                                        {copiedBM ? <Icons.Check /> : <Icons.Zap />}
+                                        {copiedBM ? '代碼已複製！' : '複製同步外掛代碼'}
+                                    </button>
+
+                                    {/* 極簡 3 步驟 */}
+                                    <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm mb-8">
+                                        <h3 className="font-black text-slate-800 mb-5 flex items-center gap-2">
+                                            <Icons.Smartphone /> 簡易安裝流程
+                                        </h3>
+                                        <div className="space-y-5 relative before:absolute before:inset-0 before:ml-4 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
+                                            <div className="relative flex items-center gap-4">
+                                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black text-sm relative z-10 shrink-0">1</div>
+                                                <p className="text-sm text-slate-600 font-bold">複製上方代碼，將任一網頁加為書籤。</p>
+                                            </div>
+                                            <div className="relative flex items-center gap-4">
+                                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black text-sm relative z-10 shrink-0">2</div>
+                                                <p className="text-sm text-slate-600 font-bold">編輯該書籤，將網址欄清空並 <span className="text-blue-600 underline">貼上代碼</span>。</p>
+                                            </div>
+                                            <div className="relative flex items-center gap-4">
+                                                <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-black text-sm relative z-10 shrink-0">3</div>
+                                                <p className="text-sm text-slate-600 font-bold">
+                                                    在 <a href="https://wifi-auth.kh.edu.tw/qrcode_searching" target="_blank" className="text-indigo-500 underline flex items-center gap-1 inline-flex">教育局網頁 <Icons.ExternalLink /></a> 點擊書籤執行同步。
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 編輯班級代號按鈕 */}
+                                    <a 
+                                        href="https://docs.google.com/spreadsheets/d/1LomQabtIlrmMnT0TxKCAectvxiINlMDnEc6QvZCEMbk/edit" 
+                                        target="_blank" 
+                                        className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-black py-4 rounded-2xl flex justify-center items-center gap-2 transition-colors border border-slate-200"
+                                    >
+                                        <Icons.Database /> 編輯班級代號 / 密碼
+                                    </a>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* =========================================================
+                            底部導航列 (Bottom Navigation)
+                        ========================================================= */}
+                        <div className="fixed sm:absolute bottom-0 left-0 w-full bg-white border-t border-slate-200 pb-safe pt-2 px-6 flex justify-around items-center z-50">
                             <button 
                                 onClick={() => setActiveTab('query')} 
-                                className={`flex-1 py-4 px-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'query' ? 'bg-white text-blue-600 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`flex flex-col items-center gap-1.5 p-3 px-8 transition-colors ${activeTab === 'query' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
                             >
-                                <Icons.Search /> 查詢密碼
+                                <Icons.Search />
+                                <span className="text-[10px] font-black tracking-widest">查詢</span>
                             </button>
                             <button 
-                                onClick={() => setActiveTab('tutorial')} 
-                                className={`flex-1 py-4 px-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'tutorial' ? 'bg-white text-blue-600 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+                                onClick={() => setActiveTab('setup')} 
+                                className={`flex flex-col items-center gap-1.5 p-3 px-8 transition-colors ${activeTab === 'setup' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
                             >
-                                <Icons.Smartphone /> 安裝教學
+                                <Icons.Settings />
+                                <span className="text-[10px] font-black tracking-widest">設定</span>
                             </button>
                         </div>
+                        <div className="h-safe bg-white"></div>
 
-                        {activeTab === 'query' && (
-                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                <div className="bg-white rounded-[3rem] p-6 md:p-10 border border-slate-200 shadow-xl relative min-h-[60vh]">
-                                    
-                                    <div className="mb-10 max-w-3xl mx-auto">
-                                        <div className="relative group">
-                                            <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
-                                                <Icons.Search />
-                                            </div>
-                                            <input 
-                                                type="text" 
-                                                placeholder="搜尋班級或代號..." 
-                                                className="w-full pl-16 pr-6 py-6 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-blue-500 focus:bg-white outline-none font-black text-xl transition-all shadow-inner placeholder:font-bold placeholder:text-slate-400 text-slate-800"
-                                                value={searchTerm} 
-                                                onChange={e=>setSearchTerm(e.target.value)} 
-                                                autoFocus
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {fetchError && !loading && (
-                                        <div className="mb-10 max-w-3xl mx-auto bg-red-50 border border-red-200 p-5 rounded-2xl flex items-start gap-4 animate-in fade-in">
-                                            <div className="text-red-500 shrink-0 w-6 h-6 mt-1"><Icons.TriangleAlert /></div>
-                                            <div>
-                                                <p className="text-lg font-bold text-red-800 mb-2">資料庫連接異常</p>
-                                                <p className="text-base text-red-600 leading-relaxed font-medium">{fetchError}</p>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {loading ? (
-                                        <div className="py-32 text-center text-blue-500 font-bold animate-pulse flex flex-col items-center gap-6">
-                                            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center"><Icons.Cloud /></div>
-                                            <span className="text-2xl">正在讀取「班級代號」對應表...</span>
-                                        </div>
-                                    ) : (
-                                        <div>
-                                            <div className="flex justify-between items-end mb-8 border-b border-slate-100 pb-5">
-                                                <p className="text-xl font-black text-slate-800 flex items-center gap-3">
-                                                    <Icons.BookOpen /> 全校節點列表
-                                                </p>
-                                                <p className="text-base text-slate-500 font-bold bg-slate-100 px-4 py-2 rounded-xl">共載入 {filteredData.length} 筆對應</p>
-                                            </div>
-                                            
-                                            {/* UI 設計 100% 吻合截圖版本 */}
-                                            {filteredData.length > 0 ? (
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 pr-4">
-                                                    {filteredData.map(i => {
-                                                        const currentId = i.s;
-                                                        const isCopied = copiedPwdId === currentId;
-                                                        const pwdText = i.p || "尚未讀取";
-                                                        const canCopy = pwdText !== "尚未同步" && pwdText !== "無資料" && pwdText !== "讀取中...";
-
-                                                        return (
-                                                            <div key={currentId} className="bg-white border border-slate-200 rounded-[1.5rem] p-5 hover:shadow-lg transition-all relative">
-                                                                {/* 頂部標籤與代號 */}
-                                                                <div className="flex justify-between items-center mb-4">
-                                                                    <span className="text-blue-600 bg-blue-50 px-3 py-1 rounded-lg font-bold text-sm tracking-wider">{i.c}</span>
-                                                                    <span className="text-slate-400 font-bold font-mono tracking-wider text-lg">{currentId}</span>
-                                                                </div>
-                                                                
-                                                                {/* 密碼框塊 */}
-                                                                <div className="bg-slate-50/80 border border-slate-100 rounded-2xl p-4 pr-16 relative flex flex-col justify-center min-h-[5.5rem]">
-                                                                    <span className="text-slate-400 text-xs font-bold tracking-widest uppercase mb-1">PASSWORD</span>
-                                                                    <span className={`flex items-center h-8 ${canCopy ? 'text-green-600 font-bold text-sm tracking-widest' : 'text-slate-400 text-sm font-bold tracking-normal'}`}>
-                                                                        {canCopy ? '已就緒' : pwdText}
-                                                                    </span>
-                                                                    
-                                                                    {/* 懸浮式獨立複製按鈕 */}
-                                                                    {canCopy && (
-                                                                        <button 
-                                                                            onClick={() => handleCopyPassword(pwdText, currentId)}
-                                                                            className={`absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-xl bg-white border border-slate-100 shadow-sm transition-all active:scale-90 ${isCopied ? 'text-green-500 border-green-200 shadow-green-100' : 'text-blue-600 hover:bg-blue-50 hover:border-blue-200'}`}
-                                                                            title="複製密碼"
-                                                                        >
-                                                                            {isCopied ? <Icons.Check /> : <Icons.Copy />}
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            ) : (
-                                                <div className="py-24 text-center text-slate-400 font-black border-4 border-dashed border-slate-50 rounded-[3rem]">
-                                                    <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6"><Icons.HelpCircle /></div>
-                                                    <span className="text-2xl">找不到符合的班級或代號</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {activeTab === 'tutorial' && (
-                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                <section className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[3rem] p-10 md:p-14 text-white mb-10 shadow-2xl relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 w-80 h-80 opacity-10 translate-x-1/4 -translate-y-1/4"><Icons.Database /></div>
-                                    <div className="relative z-10">
-                                        <span className="bg-white/20 px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-widest mb-6 inline-block border border-white/30 backdrop-blur-sm">
-                                            完全動態對應
-                                        </span>
-                                        <h2 className="text-4xl md:text-5xl font-black mb-8 tracking-tight leading-tight">
-                                            名單換了？<br />改試算表就好。
-                                        </h2>
-                                        <p className="text-blue-100 text-xl mb-10 font-medium opacity-90 max-w-xl leading-relaxed">
-                                            此版本已經與您的試算表「班級代號」綁定！只要複製一次書籤，未來即使班級對應換了，外掛也能自動讀取最新對應表來同步密碼。
-                                        </p>
-                                        <button onClick={handleCopyBookmarklet} className={`w-full sm:w-auto px-10 py-6 rounded-[1.5rem] font-black text-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center gap-4 ${copiedBM ? 'bg-green-500' : 'bg-white text-blue-600 hover:bg-blue-50'}`}>
-                                            {copiedBM ? <Icons.Check /> : <Icons.Zap />}
-                                            {copiedBM ? '啟動碼已複製！去更新書籤吧' : '複製動態版外掛代碼'}
-                                        </button>
-                                    </div>
-                                </section>
-
-                                <div className="grid md:grid-cols-2 gap-8">
-                                    <div className="bg-slate-900 rounded-[2.5rem] p-10 text-white shadow-xl">
-                                        <h3 className="text-3xl font-black mb-8 flex items-center gap-3"><Icons.Smartphone className="text-blue-400 w-10 h-10" /> 如何執行同步？</h3>
-                                        <div className="space-y-8 text-lg opacity-90 font-medium">
-                                            <div className="flex gap-5 items-start">
-                                                <b className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center flex-shrink-0 font-black shadow-lg shadow-blue-500/30">1</b>
-                                                <p className="pt-1.5 text-slate-300">打開手機或電腦瀏覽器，設定一個名為「啟動」的書籤，網址貼上您剛複製的代碼。</p>
-                                            </div>
-                                            <div className="flex gap-5 items-start">
-                                                <b className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center flex-shrink-0 font-black shadow-lg shadow-blue-500/30">2</b>
-                                                <p className="pt-1.5 text-slate-300">
-                                                    在學校打開 <a href="https://wifi-auth.kh.edu.tw/qrcode_searching" target="_blank" className="text-indigo-400 font-bold underline text-xl hover:text-indigo-300 transition-colors">教育局網頁</a>，點擊該「啟動」書籤。
-                                                </p>
-                                            </div>
-                                            <div className="flex gap-5 items-start">
-                                                <b className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center flex-shrink-0 font-black shadow-lg shadow-indigo-500/30">3</b>
-                                                <p className="pt-1 text-slate-300">
-                                                    點擊介面上方的 <span className="text-indigo-400 font-bold">「☁️ 同步至試算表」</span>，外掛就會把密碼抓齊並丟到雲端。
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="bg-amber-50 rounded-[2.5rem] p-10 border-2 border-amber-100 flex flex-col justify-center shadow-md">
-                                        <div className="w-20 h-20 bg-amber-200 text-amber-700 rounded-2xl flex items-center justify-center mb-8"><Icons.Cloud /></div>
-                                        <h3 className="text-3xl font-black text-amber-900 mb-6">如果班級對應換了？</h3>
-                                        <p className="text-xl text-amber-800 leading-relaxed font-medium mb-8">
-                                            完全不用改程式碼！只要進到您的 Google 試算表，把「班級代號」那一頁的內容更新即可。
-                                        </p>
-                                        <div className="bg-white p-6 rounded-2xl border border-amber-200">
-                                            <p className="text-lg font-bold text-slate-700 mb-3">更新對應表注意事項：</p>
-                                            <ul className="text-base text-slate-500 leading-relaxed list-disc pl-5 space-y-2">
-                                                <li>第一欄放 <b>教室編號</b> (例如: #126)。</li>
-                                                <li>第二欄放 <b>班級名稱</b> (例如: 701，程式會自動補「班」字，或直接寫 保健中心)。</li>
-                                                <li>改完後，重新把這份網頁複製成外掛，在學校網頁點擊一次 <b>☁️ 同步至試算表</b> 即可！</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                        
-                    </main>
+                    </div>
                 </div>
             );
         }
