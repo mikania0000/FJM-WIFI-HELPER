@@ -37,9 +37,9 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useMemo, useEffect } = React;
+        const { useState, useMemo, useEffect, useRef } = React;
         
-        const APP_VERSION = "v9.2";
+        const APP_VERSION = "v9.4";
 
         // --- 內嵌圖示組 ---
         const Icons = {
@@ -56,7 +56,6 @@
             Smartphone: () => <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
         };
 
-        // 預設與 Google Apps Script 位址
         const FALLBACK_DATA = [{ c: '載入中', s: '連線中...', p: '載入中' }];
         const GAS_URL = "https://script.google.com/macros/s/AKfycby5AmcAwSnAOE-Khz9t2dCIzyHugcADSMKJYk4WQGbc3srurSMxIR8DcxNjd6tSchRy/exec";
 
@@ -69,45 +68,32 @@
             const [searchTerm, setSearchTerm] = useState('');
             const [fetchError, setFetchError] = useState('');
             
-            // 管理員鎖定相關
             const [isSetupUnlocked, setIsSetupUnlocked] = useState(false);
             const [setupPwdInput, setSetupPwdInput] = useState('');
             const [verifying, setVerifying] = useState(false);
             const [verifyError, setVerifyError] = useState('');
 
-            // 初始化與資料同步
             useEffect(() => {
                 fetch(GAS_URL)
                     .then(res => res.json())
                     .then(json => {
-                        if(json.success && json.data) {
-                            setData(json.data);
-                        } else {
-                            setFetchError(json.error || "雲端資料異常");
-                            setData([]); 
-                        }
+                        if(json.success && json.data) setData(json.data);
+                        else setFetchError(json.error || "雲端資料異常");
                         setLoading(false);
                     })
                     .catch(() => {
-                        setData(FALLBACK_DATA);
-                        setFetchError("離線模式");
+                        setData([{ c: '離線中', s: 'Offline', p: '請檢查網路' }]);
+                        setFetchError("連線中斷");
                         setLoading(false);
                     });
                     
-                if (sessionStorage.getItem('fjm_setup_unlocked') === 'true') {
-                    setIsSetupUnlocked(true);
-                }
+                if (sessionStorage.getItem('fjm_setup_unlocked') === 'true') setIsSetupUnlocked(true);
             }, []);
 
-            // 驗證管理員密碼
             const handleVerifyPassword = () => {
-                if (!setupPwdInput) {
-                    setVerifyError('請輸入密碼');
-                    return;
-                }
+                if (!setupPwdInput) { setVerifyError('請輸入密碼'); return; }
                 setVerifying(true);
                 setVerifyError('');
-                
                 fetch(`${GAS_URL}?action=verify&pwd=${encodeURIComponent(setupPwdInput)}`)
                     .then(res => res.json())
                     .then(json => {
@@ -115,50 +101,21 @@
                             setIsSetupUnlocked(true);
                             sessionStorage.setItem('fjm_setup_unlocked', 'true');
                             setSetupPwdInput('');
-                        } else {
-                            setVerifyError('密碼錯誤');
-                        }
+                        } else { setVerifyError('密碼錯誤'); }
                         setVerifying(false);
-                    })
-                    .catch(() => {
-                        setVerifyError('連線異常');
-                        setVerifying(false);
-                    });
+                    }).catch(() => { setVerifyError('連線異常'); setVerifying(false); });
             };
 
             const handlePwdKeyDown = (e) => {
                 if (e.key === 'Enter') handleVerifyPassword();
             };
 
-            // --- 產生書籤外掛代碼 (智慧全掃描引擎) ---
+            // --- 產生書籤代碼 (v9.4：掃描範圍縮減至 500 號以內) ---
             const bookmarkletCode = useMemo(() => {
                 const compact = data.map(i => ({ s: i.s, c: i.c }));
-                const coreScript = `(async function(){if(document.getElementById('fjm-root'))return;function l(s,g){return new Promise(r=>{if(window[g])return r();const t=document.createElement('script');t.src=s;t.onload=r;document.head.appendChild(t)})};await l('https://cdn.tailwindcss.com','tailwind');await l('https://unpkg.com/react@18/umd/react.production.min.js','React');await l('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js','ReactDOM');const rootDiv=document.createElement('div');rootDiv.id='fjm-root';rootDiv.style.cssText='position:fixed;inset:0;z-index:9999999;background:#f8fafc;overflow-y:auto;';document.body.appendChild(rootDiv);const{useState,useEffect,useMemo,createElement:e}=React;const DATA=${JSON.stringify(compact)};const GAS_LINK="${GAS_URL}";const APP_VER="${APP_VERSION}";const App=()=>{const[s,setS]=useState('');const[c,setC]=useState(null);const[d,setD]=useState(DATA.map(x=>({...x,p:"讀取中..."})));const[ld,setLd]=useState(true);const[st,setSt]=useState('idle');useEffect(()=>{fetch(GAS_LINK).then(r=>r.json()).then(j=>{if(j.success&&j.data){setD(j.data)}setLd(false)}).catch(()=>{setLd(false)})},[]);const doSync=async()=>{setSt('syncing');const res=[["教室","SSID","密碼","更新時間"]];for(const a of DATA){try{const r=await fetch("/api/qrcode_searching?ssid="+a.s);const j=await r.json();if(j.success&&j.data&&j.data.length>0){const p=j.data[0].ss_password.replace(/(.{4})/g,'$1 ').trim();res.push([a.c,a.s,p,new Date().toLocaleString()]);}}catch(e){}await new Promise(r=>setTimeout(r,200));}try{await fetch(GAS_LINK,{method:"POST",mode:"no-cors",body:JSON.stringify({data:res})});setSt('done');setTimeout(()=>setSt('idle'),3000)}catch(e){setSt('error')}};const doScanBackup=async()=>{setSt('scanning');const res=[["SSID","密碼","比對狀態","更新時間"]];const cands=[];for(let f=1;f<=6;f++)for(let r=1;r<=50;r++)cands.push('FJM-'+f+(r<10?'0'+r:r));const extras=['ART','TEST','LIB','LAB','MUSIC','GYM','HEALTH','OFFICE','COMPUTER'];extras.forEach(x=>cands.push('FJM-'+x));let fnd=0;for(let i=0;i<cands.length;i++){let ssid=cands[i];setS('掃描中: '+ssid);try{const r=await fetch("/api/qrcode_searching?ssid="+ssid);const j=await r.json();if(j.success&&j.data&&j.data.length>0){const p=j.data[0].ss_password.replace(/(.{4})/g,'$1 ').trim();const isM=DATA.some(d=>d.s===ssid)?"✅ 已在清單":"❌ 漏填";res.push([ssid,p,isM,new Date().toLocaleString()]);fnd++;}}catch(e){}await new Promise(r=>setTimeout(r,100));}try{await fetch(GAS_LINK,{method:"POST",mode:"no-cors",body:JSON.stringify({type:"backup",data:res})});setSt('backup_done');setTimeout(()=>setSt('idle'),5000);}catch(e){setSt('error');}};const f=useMemo(()=>!s.trim()?d:d.filter(i=>i.s.toLowerCase().includes(s.toLowerCase())||i.c.includes(s)),[s,d]);return e('div',{className:"max-w-md mx-auto bg-slate-50 min-h-screen flex flex-col font-sans"},e('div',{className:"p-6 bg-white border-b sticky top-0 z-10 shadow-sm"},e('div',{className:"flex justify-between items-center mb-6"},e('h1',{className:"text-3xl font-black text-slate-800 flex items-center gap-3"},"FJM 同步",e('span',{className:"text-sm bg-blue-100 text-blue-600 px-3 py-1 rounded-lg"},APP_VER)),e('button',{onClick:()=>document.getElementById('fjm-root').remove(),className:"text-slate-400 font-black p-3 text-xl bg-slate-100 rounded-full w-12 h-12 flex items-center justify-center transition-colors"},"✕")),e('div',{className:"flex flex-col gap-3 mb-6"},e('button',{onClick:doSync,className:"w-full py-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-[1.5rem] font-black text-2xl shadow-lg transition-all"},st==='syncing'?'⏳ 緩速同步中...':st==='done'?'✅ 已傳送至查詢表':'☁️ 一鍵同步現有名單'),e('button',{onClick:doScanBackup,className:"w-full py-4 bg-slate-800 text-white rounded-[1.5rem] font-black text-xl shadow-lg transition-all"},st==='scanning'?'⏳ 正在深度掃描全校...':st==='backup_done'?'✅ 已建立備份工作表！':'📦 尋找漏填設備並備份')),e('input',{className:"w-full p-5 rounded-2xl bg-slate-100 focus:bg-white border-2 border-transparent focus:border-blue-500 font-black text-2xl outline-none transition-all",placeholder:"搜尋或掃描狀態...",value:s,onChange:ev=>setS(ev.target.value)})),e('div',{className:"p-5 pb-24 flex flex-col gap-5"},f.map(i=>{const cp=i.p&&i.p!=="尚未同步"&&i.p!=="無資料"&&i.p!=="讀取中...";const isC=c===i.s;const doC=()=>{if(!cp)return;const ta=document.createElement('textarea');ta.value=i.p.replace(/\\s+/g,'');document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);setC(i.s);setTimeout(()=>setC(null),2000)};return e('div',{key:i.s,className:"bg-white border border-slate-200/70 rounded-[1.5rem] p-6 shadow-sm relative"},e('div',{className:"flex justify-between items-center mb-5"},e('span',{className:"bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-lg font-black tracking-widest"},i.c),e('span',{className:"text-slate-700 font-bold font-mono text-2xl tracking-wider"},i.s)),e('div',{className:"bg-slate-50 rounded-2xl p-5 pr-16 relative min-h-[5.5rem] flex flex-col justify-center"},e('span',{className:"text-slate-400 text-sm font-black tracking-widest uppercase mb-1"},"WIFI PASSWORD"),e('span',{className:"font-mono font-black text-2xl "+(cp?'text-green-600':'text-slate-400')},cp?'已就緒':i.p),cp&&e('button',{onClick:doC,className:"absolute right-4 top-1/2 -translate-y-1/2 w-14 h-14 flex items-center justify-center rounded-xl bg-white border border-slate-200 shadow-md transition-all active:scale-90 "+(isC?'text-green-500 border-green-300':'text-blue-600')},isC?'✔':'📋')))})))};ReactDOM.createRoot(rootDiv).render(e(App))})()`;
+                const coreScript = `(async function(){if(document.getElementById('fjm-root'))return;function l(s,g){return new Promise(r=>{if(window[g])return r();const t=document.createElement('script');t.src=s;t.onload=r;document.head.appendChild(t)})};await l('https://cdn.tailwindcss.com','tailwind');await l('https://unpkg.com/react@18/umd/react.production.min.js','React');await l('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js','ReactDOM');const rootDiv=document.createElement('div');rootDiv.id='fjm-root';rootDiv.style.cssText='position:fixed;inset:0;z-index:9999999;background:#f8fafc;overflow-y:auto;';document.body.appendChild(rootDiv);const{useState,useEffect,useMemo,useRef,createElement:e}=React;const DATA=${JSON.stringify(compact)};const GAS_LINK="${GAS_URL}";const APP_VER="${APP_VERSION}";const App=()=>{const[s,setS]=useState('');const[c,setC]=useState(null);const[d,setD]=useState(DATA.map(x=>({...x,p:"讀取中..."})));const[ld,setLd]=useState(true);const[st,setSt]=useState('idle');const stopRef=useRef(false);useEffect(()=>{fetch(GAS_LINK).then(r=>r.json()).then(j=>{if(j.success&&j.data)setD(j.data);setLd(false)}).catch(()=>setLd(false))},[]);const doSync=async()=>{setSt('syncing');stopRef.current=false;const res=[["教室","SSID","密碼","更新時間"]];for(const a of DATA){if(stopRef.current)break;try{const r=await fetch("/api/qrcode_searching?ssid="+a.s);const j=await r.json();if(j.success&&j.data[0]){const p=j.data[0].ss_password.replace(/(.{4})/g,'$1 ').trim();res.push([a.c,a.s,p,new Date().toLocaleString()]);}}catch(e){}await new Promise(r=>setTimeout(r,300));}if(!stopRef.current){try{await fetch(GAS_LINK,{method:"POST",mode:"no-cors",body:JSON.stringify({data:res})});setSt('done')}catch(e){setSt('error')}}else{setSt('idle')}setTimeout(()=>setSt('idle'),3000)};const doScan=async()=>{setSt('scanning');stopRef.current=false;const res=[["SSID","密碼","比對狀態","更新時間"]];const cands=[];for(let f=1;f<=5;f++)for(let r=1;r<=50;r++)cands.push('FJM-'+f+(r<10?'0'+r:r));const extras=['ART','TEST','LIB','LAB','MUSIC','OFFICE'];extras.forEach(x=>cands.push('FJM-'+x));for(let i=0;i<cands.length;i++){if(stopRef.current)break;let ssid=cands[i];setS('安全掃描中 ('+Math.round((i/cands.length)*100)+'%): '+ssid);try{const r=await fetch("/api/qrcode_searching?ssid="+ssid);const j=await r.json();if(j.success&&j.data[0]){const p=j.data[0].ss_password.replace(/(.{4})/g,'$1 ').trim();const isM=DATA.some(d=>d.s===ssid)?"✅ 已在清單":"❌ 漏填";res.push([ssid,p,isM,new Date().toLocaleString()]);}}catch(e){}await new Promise(r=>setTimeout(r,800));}if(!stopRef.current){try{await fetch(GAS_LINK,{method:"POST",mode:"no-cors",body:JSON.stringify({type:"backup",data:res})});setSt('backup_done')}catch(e){setSt('error')}}setS('');setTimeout(()=>setSt('idle'),3000)};return e('div',{className:"max-w-md mx-auto bg-slate-50 min-h-screen flex flex-col font-sans"},e('div',{className:"p-6 bg-white border-b sticky top-0 z-10 shadow-sm text-slate-900 font-sans"},e('div',{className:"flex justify-between items-center mb-6"},e('h1',{className:"text-3xl font-black text-slate-800 flex items-center gap-3 font-sans"},"FJM 安全同步",e('span',{className:"text-sm bg-green-100 text-green-700 px-3 py-1 rounded-lg font-bold font-sans"},APP_VER)),e('button',{onClick:()=>document.getElementById('fjm-root').remove(),className:"text-slate-400 font-black p-3 text-xl bg-slate-100 rounded-full w-12 h-12 flex items-center justify-center font-sans transition-colors"},"✕")),e('div',{className:"flex flex-col gap-3 mb-6"},(st==='syncing'||st==='scanning')?e('button',{onClick:()=>stopRef.current=true,className:"w-full py-6 bg-red-500 text-white rounded-[1.5rem] font-black text-2xl shadow-lg flex items-center justify-center gap-3 animate-pulse font-sans"},e('div',{className:"w-5 h-5 bg-white rounded-sm"}),"立即停止掃描"):e('div',{className:"flex flex-col gap-3 font-sans"},e('button',{onClick:doSync,className:"w-full py-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-[1.5rem] font-black text-2xl shadow-lg transition-all font-sans"},st==='done'?'✅ 已更新查詢表':'☁️ 一鍵同步現有名單'),e('button',{onClick:doScan,className:"w-full py-4 bg-slate-800 text-white rounded-[1.5rem] font-black text-xl shadow-lg transition-all font-sans"},st==='backup_done'?'✅ 已建立備份表！':'📦 安全掃描漏填設備 (500號內)'))),e('input',{className:"w-full p-5 rounded-2xl bg-slate-100 focus:bg-white border-2 border-transparent focus:border-blue-500 font-black text-2xl outline-none transition-all font-sans",placeholder:"狀態顯示...",value:s,readOnly:true}))),e('div',{className:"p-5 pb-24 flex flex-col gap-5 font-sans"},f.map(i=>{const cp=i.p&&i.p!=="讀取中...";const isC=c===i.s;const doC=()=>{if(!cp)return;const ta=document.createElement('textarea');ta.value=i.p.replace(/\\s+/g,'');document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);setC(i.s);setTimeout(()=>setC(null),2000)};return e('div',{key:i.s,className:"bg-white border border-slate-200 rounded-[1.5rem] p-6 shadow-sm relative font-sans"},e('div',{className:"flex justify-between items-center mb-5 font-sans"},e('span',{className:"bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-lg font-black font-sans"},i.c),e('span',{className:"text-slate-700 font-bold font-mono text-2xl font-sans"},i.s)),e('div',{className:"bg-slate-50 rounded-2xl p-5 pr-16 relative flex flex-col justify-center min-h-[5.5rem] font-sans"},e('span',{className:"text-slate-400 text-sm font-black tracking-widest uppercase mb-1 font-sans"},"WIFI PASSWORD"),e('span',{className:"font-mono font-black text-2xl font-sans "+(cp?'text-green-600':'text-slate-400')},cp?'已就緒':i.p),cp&&e('button',{onClick:doC,className:"absolute right-4 top-1/2 -translate-y-1/2 w-14 h-14 flex items-center justify-center rounded-xl bg-white border border-slate-200 shadow-md transition-all active:scale-90 font-sans"},isC?'✔':'📋')))})))};ReactDOM.createRoot(rootDiv).render(e(App))})()`;
                 return `javascript:void(${coreScript})`;
             }, [data]);
-
-            // 輔助函式：複製到剪貼簿
-            const copyToClipboard = (text) => {
-                const ta = document.createElement("textarea");
-                ta.value = text;
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand('copy');
-                document.body.removeChild(ta);
-            };
-
-            const handleCopyBookmarklet = () => {
-                copyToClipboard(bookmarkletCode);
-                setCopiedBM(true);
-                setTimeout(() => setCopiedBM(false), 3000);
-            };
-
-            const handleCopyPassword = (pwd, id) => {
-                if (!pwd || pwd === "尚未同步" || pwd === "無資料") return;
-                copyToClipboard(pwd.replace(/\s+/g, ''));
-                setCopiedPwdId(id);
-                setTimeout(() => setCopiedPwdId(null), 1500);
-            };
 
             const filteredData = useMemo(() => {
                 const kw = searchTerm.toLowerCase();
@@ -167,12 +124,11 @@
 
             return (
                 <div className="flex justify-center bg-slate-200 sm:py-8" style={{ height: '100dvh' }}>
-                    {/* APP 主容器 */}
                     <div className="w-full sm:max-w-md bg-[#f8fafc] h-full relative flex flex-col sm:shadow-2xl sm:rounded-[2.5rem] border-slate-200 sm:border overflow-hidden">
                         
                         <div className="flex-1 relative overflow-hidden">
                             
-                            {/* --- 1. 查詢分頁 --- */}
+                            {/* --- 查詢頁面 --- */}
                             <div className={`absolute inset-0 flex flex-col ${activeTab === 'query' ? 'animate-fade-in z-10' : 'hidden z-0'}`}>
                                 <div className="shrink-0 bg-[#f8fafc]/90 backdrop-blur-xl z-40 px-6 pt-8 pb-5 border-b border-slate-200/60 shadow-sm">
                                     <div className="flex justify-between items-center mb-6">
@@ -211,7 +167,7 @@
                                     {loading ? (
                                         <div className="py-24 flex flex-col items-center justify-center gap-5 opacity-50">
                                             <div className="animate-bounce text-blue-500 scale-150 mb-2"><Icons.Cloud /></div>
-                                            <span className="text-2xl font-black text-slate-400">正在同步雲端庫...</span>
+                                            <span className="text-2xl font-black text-slate-400 tracking-tighter">同步中，請稍候...</span>
                                         </div>
                                     ) : (
                                         <div className="flex flex-col gap-5">
@@ -235,7 +191,14 @@
                                                                 </span>
                                                                 {canCopy && (
                                                                     <button 
-                                                                        onClick={() => handleCopyPassword(pwdText, currentId)}
+                                                                        onClick={() => {
+                                                                            const ta = document.createElement("textarea");
+                                                                            ta.value = pwdText.replace(/\s+/g, '');
+                                                                            document.body.appendChild(ta); ta.select();
+                                                                            document.execCommand('copy'); document.body.removeChild(ta);
+                                                                            setCopiedPwdId(currentId);
+                                                                            setTimeout(() => setCopiedPwdId(null), 1500);
+                                                                        }}
                                                                         className={`absolute right-4 top-1/2 -translate-y-1/2 w-14 h-14 flex items-center justify-center rounded-xl bg-white border shadow-sm transition-all active:scale-90 ${isCopied ? 'text-green-500 border-green-300 shadow-green-100' : 'text-blue-600 border-slate-200 hover:bg-blue-50'}`}
                                                                     >
                                                                         {isCopied ? <div className="scale-110"><Icons.Check /></div> : <div className="scale-110"><Icons.Copy /></div>}
@@ -248,7 +211,7 @@
                                             ) : (
                                                 <div className="py-24 text-center text-slate-400 font-black flex flex-col items-center">
                                                     <div className="scale-150 mb-4"><Icons.Search /></div>
-                                                    <span className="mt-4 text-2xl tracking-tighter">查無班級，請點擊「設定」更新</span>
+                                                    <span className="mt-4 text-2xl tracking-tighter">找不到符合的名單</span>
                                                 </div>
                                             )}
                                         </div>
@@ -256,16 +219,16 @@
                                 </div>
                             </div>
 
-                            {/* --- 2. 設定分頁 --- */}
+                            {/* --- 設定分頁 --- */}
                             <div className={`absolute inset-0 flex flex-col overflow-y-auto px-6 py-8 pb-6 ${activeTab === 'setup' ? 'animate-fade-in z-10' : 'hidden z-0'}`}>
                                 {!isSetupUnlocked ? (
-                                    <div className="flex-1 flex flex-col items-center justify-center h-full pb-20">
-                                        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 w-full max-w-sm text-center">
+                                    <div className="flex-1 flex flex-col items-center justify-center h-full pb-20 px-4">
+                                        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100 w-full max-w-sm text-center">
                                             <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 scale-110 shadow-inner">
                                                 <Icons.Lock />
                                             </div>
-                                            <h2 className="text-4xl font-black text-slate-800 mb-4">管理員驗證</h2>
-                                            <p className="text-slate-500 text-xl font-bold mb-8 opacity-70">輸入試算表 A2 密碼</p>
+                                            <h2 className="text-4xl font-black text-slate-800 mb-4">驗證</h2>
+                                            <p className="text-slate-500 text-xl font-bold mb-8 opacity-70">輸入管理密碼</p>
                                             <input
                                                 type="password"
                                                 value={setupPwdInput}
@@ -274,80 +237,54 @@
                                                 className="w-full bg-slate-50 border-2 border-slate-100 focus:border-blue-500 focus:bg-white rounded-[1.5rem] py-6 px-6 text-center text-3xl font-black tracking-[0.3em] outline-none mb-6 transition-all"
                                                 placeholder="••••"
                                             />
-                                            <button
-                                                onClick={handleVerifyPassword}
-                                                disabled={verifying}
-                                                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-2xl font-black py-6 rounded-[1.5rem] active:scale-95 transition-all shadow-lg shadow-blue-500/30 flex justify-center items-center gap-2"
-                                            >
-                                                {verifying ? '驗證中...' : '解鎖進入'}
+                                            <button onClick={handleVerifyPassword} disabled={verifying} className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-2xl font-black py-6 rounded-[1.5rem] active:scale-95 transition-all shadow-lg flex justify-center items-center gap-2 font-sans">
+                                                {verifying ? '請稍候...' : '進入設定'}
                                             </button>
-                                            {verifyError && (
-                                                <p className="text-red-500 text-lg font-black mt-5 animate-shake">{verifyError}</p>
-                                            )}
+                                            {verifyError && <p className="text-red-500 text-lg font-black mt-5 animate-shake">{verifyError}</p>}
                                         </div>
                                     </div>
                                 ) : (
                                     <div className="pt-4">
                                         <h2 className="text-5xl font-black text-slate-800 mb-4 tracking-tighter">系統設定</h2>
-                                        <p className="text-slate-500 text-xl font-bold mb-10 leading-relaxed opacity-80 text-xl">管理外掛代碼與班級對應表。</p>
+                                        <p className="text-slate-500 text-xl font-bold mb-10 leading-relaxed opacity-80">安全與同步中心</p>
 
-                                        <button 
-                                            onClick={handleCopyBookmarklet} 
-                                            className={`w-full py-8 rounded-[2.5rem] font-black text-3xl shadow-xl transition-all flex flex-col items-center justify-center gap-3 active:scale-95 mb-10 ${copiedBM ? 'bg-green-500 text-white shadow-green-500/30' : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-blue-500/40'}`}
-                                        >
+                                        <button onClick={() => {
+                                            const ta = document.createElement("textarea");
+                                            ta.value = bookmarkletCode;
+                                            document.body.appendChild(ta); ta.select();
+                                            document.execCommand('copy'); document.body.removeChild(ta);
+                                            setCopiedBM(true); setTimeout(() => setCopiedBM(false), 3000);
+                                        }} className={`w-full py-8 rounded-[2.5rem] font-black text-3xl shadow-xl transition-all flex flex-col items-center justify-center gap-3 active:scale-95 mb-10 font-sans ${copiedBM ? 'bg-green-500 text-white' : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-blue-500/40'}`}>
                                             {copiedBM ? <div className="scale-125 mb-1"><Icons.Check /></div> : <div className="scale-125 mb-1"><Icons.Zap /></div>}
-                                            {copiedBM ? '已複製到剪貼簿！' : '複製同步外掛代碼'}
+                                            {copiedBM ? '已複製！' : '複製安全版外掛'}
                                         </button>
 
                                         <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-md mb-10">
-                                            <h3 className="text-2xl font-black text-slate-800 mb-8 flex items-center gap-3">
-                                                <div className="scale-110"><Icons.Smartphone /></div> 極簡安裝流程
+                                            <h3 className="text-2xl font-black text-slate-800 mb-8 flex items-center gap-3 font-sans">
+                                                <div className="scale-110"><Icons.Alert /></div> 安全掃描機制
                                             </h3>
-                                            <div className="space-y-10 relative before:absolute before:inset-0 before:ml-6 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
-                                                <div className="relative flex items-center gap-6">
-                                                    <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center font-black text-2xl relative z-10 shrink-0">1</div>
-                                                    <p className="text-2xl text-slate-600 font-black">點擊上方複製代碼</p>
-                                                </div>
-                                                <div className="relative flex items-center gap-6">
-                                                    <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center font-black text-2xl relative z-10 shrink-0">2</div>
-                                                    <p className="text-2xl text-slate-600 font-black">貼上至書籤網址欄</p>
-                                                </div>
-                                                <div className="relative flex items-center gap-6">
-                                                    <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-black text-2xl relative z-10 shrink-0">3</div>
-                                                    <p className="text-2xl text-slate-600 font-black flex flex-wrap items-center">
-                                                        在 <a href="https://wifi-auth.kh.edu.tw/qrcode_searching" target="_blank" className="text-indigo-600 underline hover:text-indigo-500 mx-2">教育局網頁 <Icons.ExternalLink /></a> 點擊執行
-                                                    </p>
-                                                </div>
+                                            <div className="space-y-6 text-xl text-slate-600 font-bold leading-relaxed font-sans">
+                                                <p>1. 掃描範圍限制在 <span className="text-blue-600 font-black">500號</span> 以內。</p>
+                                                <p>2. 單次掃描間隔 <span className="text-blue-600 font-black">0.8秒</span>，對伺服器極友善。</p>
+                                                <p>3. 點選紅色按鈕可隨時 <span className="text-red-500 font-black">立即停止</span> 流量。</p>
                                             </div>
                                         </div>
 
-                                        <a 
-                                            href="https://docs.google.com/spreadsheets/d/1LomQabtIlrmMnT0TxKCAectvxiINlMDnEc6QvZCEMbk/edit" 
-                                            target="_blank" 
-                                            className="w-full bg-white hover:bg-slate-50 text-slate-700 font-black text-2xl py-6 rounded-[2rem] flex justify-center items-center gap-3 transition-colors border-2 border-slate-200 shadow-sm active:scale-95 mb-8"
-                                        >
-                                            <div className="scale-110"><Icons.Database /></div> 編輯班級代號 / 密碼
+                                        <a href="https://docs.google.com/spreadsheets/d/1LomQabtIlrmMnT0TxKCAectvxiINlMDnEc6QvZCEMbk/edit" target="_blank" className="w-full bg-white hover:bg-slate-50 text-slate-700 font-black text-2xl py-6 rounded-[2rem] flex justify-center items-center gap-3 transition-colors border-2 border-slate-200 shadow-sm active:scale-95 mb-8 font-sans">
+                                            <div className="scale-110"><Icons.Database /></div> 編輯對應表
                                         </a>
                                     </div>
                                 )}
                             </div>
                         </div>
 
-                        {/* =========================================================
-                            底部導航列 (大字體、高對比、單手點擊區)
-                        ========================================================= */}
-                        <div className="shrink-0 w-full bg-white border-t border-slate-200 pt-4 safe-bottom flex justify-around items-center z-50 rounded-b-[2.5rem] sm:rounded-b-none shadow-2xl shadow-black/10">
-                            <button 
-                                onClick={() => setActiveTab('query')} 
-                                className={`flex flex-col items-center gap-2 p-3 px-14 transition-all ${activeTab === 'query' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
-                            >
+                        {/* --- 底部導航列 (大字體 22px、超大點擊區) --- */}
+                        <div className="shrink-0 w-full bg-white border-t border-slate-200 pt-4 safe-bottom flex justify-around items-center z-50 rounded-b-[2.5rem] sm:rounded-b-none shadow-2xl">
+                            <button onClick={() => setActiveTab('query')} className={`flex flex-col items-center gap-2 p-3 px-14 transition-all ${activeTab === 'query' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
                                 <div className="scale-[1.4] mb-2"><Icons.Search /></div>
                                 <span className="text-[22px] font-black tracking-widest">查詢</span>
                             </button>
-                            <button 
-                                onClick={() => setActiveTab('setup')} 
-                                className={`flex flex-col items-center gap-2 p-3 px-14 transition-all ${activeTab === 'setup' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
-                            >
+                            <button onClick={() => setActiveTab('setup')} className={`flex flex-col items-center gap-2 p-3 px-14 transition-all ${activeTab === 'setup' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
                                 <div className="scale-[1.4] mb-2"><Icons.Settings /></div>
                                 <span className="text-[22px] font-black tracking-widest">設定</span>
                             </button>
@@ -358,7 +295,6 @@
             );
         }
 
-        // 渲染 React 應用
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
