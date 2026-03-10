@@ -10,8 +10,8 @@
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- 載入 QR Code 生成庫 -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <!-- 載入 QR Code 生成庫 (更換為更穩定的 cdnjs) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
@@ -38,7 +38,7 @@
     <script type="text/babel">
         const { useState, useMemo, useEffect, useRef } = React;
         
-        const APP_VERSION = "v10.1";
+        const APP_VERSION = "v10.2";
 
         // --- 內嵌圖示組 ---
         const Icons = {
@@ -76,6 +76,8 @@
 
             // QR Code 彈出視窗狀態
             const [qrModal, setQrModal] = useState({ show: false, ssid: '', pwd: '', c: '' });
+            // ★ 修正 1：改用 React State 來儲存圖片網址，確保畫面 100% 同步更新
+            const [qrUrl, setQrUrl] = useState('');
 
             useEffect(() => {
                 fetch(GAS_URL)
@@ -94,13 +96,10 @@
                 if (sessionStorage.getItem('fjm_setup_unlocked') === 'true') setIsSetupUnlocked(true);
             }, []);
 
-            // 監聽 QR Modal 狀態來生成圖片
+            // ★ 修正 2：監聽 QR Modal，更新狀態而非尋找 DOM
             useEffect(() => {
                 if (qrModal.show && window.QRCode) {
-                    // ★ 關鍵修正：不再移除密碼中的空白，完全保留原始抓到的密碼格式
-                    const originalPwd = qrModal.pwd;
-                    
-                    // ★ 關鍵修正：完全對齊教育局的 QR Code 格式順序 (S 在前，T 在後)
+                    const originalPwd = qrModal.pwd; // 保留密碼原本的空白格式
                     const wifiString = `WIFI:S:${qrModal.ssid};T:WPA;P:${originalPwd};;`;
                     
                     window.QRCode.toDataURL(wifiString, {
@@ -109,12 +108,13 @@
                         color: { dark: '#0f172a', light: '#ffffff' }
                     }, (err, url) => {
                         if (!err) {
-                            const imgElement = document.getElementById('qr-code-image');
-                            if (imgElement) imgElement.src = url;
+                            setQrUrl(url); // 設定狀態，畫面自動渲染圖片
                         }
                     });
+                } else {
+                    setQrUrl(''); // 關閉時清空圖片
                 }
-            }, [qrModal.show]);
+            }, [qrModal]);
 
             const handleVerifyPassword = () => {
                 if (!setupPwdInput) { setVerifyError('請輸入密碼'); return; }
@@ -137,11 +137,11 @@
                 if (e.key === 'Enter') handleVerifyPassword();
             };
 
-            // --- 產生書籤代碼 (v10.1 同步修正 QR Code 生成邏輯) ---
+            // --- 產生書籤代碼 (v10.2：同步修復外掛版 QR Code 的 State 綁定與 cdnjs) ---
             const bookmarkletCode = useMemo(() => {
                 const compact = data.map(i => ({ s: i.s, c: i.c }));
-                const coreScript = `(async function(){if(document.getElementById('fjm-root'))return;function l(s,g,c){return new Promise(r=>{if(window[g]&&window[g][c])return r();const t=document.createElement('script');t.src=s;t.onload=r;document.head.appendChild(t)})};await l('https://cdn.tailwindcss.com','tailwind','config');await l('https://unpkg.com/react@18/umd/react.production.min.js','React','useRef');await l('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js','ReactDOM','createRoot');await l('https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js','QRCode','toDataURL');const rootDiv=document.createElement('div');rootDiv.id='fjm-root';rootDiv.style.cssText='position:fixed;inset:0;z-index:9999999;background:#f8fafc;overflow-y:auto;';document.body.appendChild(rootDiv);const{useState,useEffect,useMemo,useRef,createElement:e}=window.React;const DATA=${JSON.stringify(compact)};const GAS_LINK="${GAS_URL}";const APP_VER="${APP_VERSION}";const App=()=>{const[s,setS]=useState('');const[c,setC]=useState(null);const[d,setD]=useState(DATA.map(x=>({...x,p:"讀取中..."})));const[ld,setLd]=useState(true);const[st,setSt]=useState('idle');const[qrM,setQrM]=useState(null);const stopRef=useRef(false);useEffect(()=>{fetch(GAS_LINK).then(r=>r.json()).then(j=>{if(j.success&&j.data)setD(j.data);setLd(false);}).catch(()=>setLd(false));},[]);useEffect(()=>{if(qrM&&window.QRCode){window.QRCode.toDataURL('WIFI:S:'+qrM.s+';T:WPA;P:'+qrM.p+';;',{width:300,margin:2},function(err,url){if(!err){let img=document.getElementById('bm-qr-img');if(img)img.src=url;}})}},[qrM]);const doSync=async()=>{setSt('syncing');stopRef.current=false;const res=[["教室","SSID","密碼","更新時間"]];for(const a of DATA){if(stopRef.current)break;try{const r=await fetch("/api/qrcode_searching?ssid="+a.s);const j=await r.json();if(j.success&&j.data[0]){const p=j.data[0].ss_password.replace(/(.{4})/g,'$1 ').trim();res.push([a.c,a.s,p,new Date().toLocaleString()]);}}catch(e){}await new Promise(r=>setTimeout(r,300));}if(!stopRef.current){try{await fetch(GAS_LINK,{method:"POST",mode:"no-cors",body:JSON.stringify({data:res})});setSt('done');}catch(e){setSt('error');}}else{setSt('idle');}setTimeout(()=>setSt('idle'),3000);};const doScan=async()=>{setSt('scanning');stopRef.current=false;const res=[["SSID","密碼","比對狀態","更新時間"]];const cands=[];for(let f=1;f<=5;f++){for(let r=1;r<=50;r++){cands.push('FJM-'+f+(r<10?'0'+r:r));}}const extras=['ART','TEST','LIB','LAB','MUSIC','OFFICE'];extras.forEach(x=>cands.push('FJM-'+x));for(let i=0;i<cands.length;i++){if(stopRef.current)break;let ssid=cands[i];setS('掃描中 ('+Math.round((i/cands.length)*100)+'%): '+ssid);try{const r=await fetch("/api/qrcode_searching?ssid="+ssid);const j=await r.json();if(j.success&&j.data[0]){const p=j.data[0].ss_password.replace(/(.{4})/g,'$1 ').trim();const isM=DATA.some(d=>d.s===ssid)?"✅ 已在清單":"❌ 漏填";res.push([ssid,p,isM,new Date().toLocaleString()]);}}catch(e){}await new Promise(r=>setTimeout(r,800));}if(!stopRef.current){try{await fetch(GAS_LINK,{method:"POST",mode:"no-cors",body:JSON.stringify({type:"backup",data:res})});setSt('backup_done');}catch(e){setSt('error');}}setS('');setTimeout(()=>setSt('idle'),3000);};const f=useMemo(()=>!s.trim()?d:d.filter(i=>i.s.toLowerCase().includes(s.toLowerCase())||i.c.includes(s)),[s,d]);return e('div',{className:"max-w-md mx-auto bg-slate-50 min-h-screen flex flex-col font-sans"},e('div',{className:"p-6 bg-white border-b sticky top-0 z-10 shadow-sm text-slate-900 font-sans"},e('div',{className:"flex justify-between items-center mb-6"},e('h1',{className:"text-3xl font-black text-slate-800 flex items-center gap-3 font-sans"},"FJM 安全同步",e('span',{className:"text-sm bg-green-100 text-green-700 px-3 py-1 rounded-lg font-bold font-sans"},APP_VER)),e('button',{onClick:()=>document.getElementById('fjm-root').remove(),className:"text-slate-400 font-black p-3 text-xl bg-slate-100 rounded-full w-12 h-12 flex items-center justify-center font-sans transition-colors"},"✕")),e('div',{className:"flex flex-col gap-3 mb-6"},(st==='syncing'||st==='scanning')?e('button',{onClick:()=>stopRef.current=true,className:"w-full py-6 bg-red-500 text-white rounded-[1.5rem] font-black text-2xl shadow-lg flex items-center justify-center gap-3 animate-pulse font-sans"},e('div',{className:"w-5 h-5 bg-white rounded-sm"}),"立即停止"):e('div',{className:"flex flex-col gap-3 font-sans"},e('button',{onClick:doSync,className:"w-full py-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-[1.5rem] font-black text-2xl shadow-lg transition-all font-sans"},st==='done'?'✅ 已更新查詢表':'☁️ 同步現有名單'),e('button',{onClick:doScan,className:"w-full py-4 bg-slate-800 text-white rounded-[1.5rem] font-black text-xl shadow-lg transition-all font-sans"},st==='backup_done'?'✅ 已建立備份表！':'📦 尋找漏填設備 (500內)'))),e('input',{className:"w-full p-5 rounded-2xl bg-slate-100 focus:bg-white border-2 border-transparent focus:border-blue-500 font-black text-2xl outline-none transition-all font-sans",placeholder:"搜尋班級...",value:s,readOnly:(st==='scanning'||st==='syncing'),onChange:ev=>setS(ev.target.value)})),e('div',{className:"p-5 pb-24 flex flex-col gap-5 font-sans"},f.map(i=>{const cp=i.p&&i.p!=="讀取中...";const isC=c===i.s;const doC=()=>{if(!cp)return;const ta=document.createElement('textarea');ta.value=i.p.replace(/\\s+/g,'');document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);setC(i.s);setTimeout(()=>setC(null),2000);};return e('div',{key:i.s,className:"bg-white border border-slate-200 rounded-[1.5rem] p-6 shadow-sm relative font-sans"},e('div',{className:"flex justify-between items-center mb-5 font-sans"},e('span',{className:"bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-lg font-black font-sans"},i.c),e('span',{className:"text-slate-700 font-bold font-mono text-2xl font-sans"},i.s)),e('div',{className:"bg-slate-50 rounded-2xl p-5 pr-[110px] relative flex flex-col justify-center min-h-[5.5rem] font-sans"},e('span',{className:"text-slate-400 text-sm font-black tracking-widest uppercase mb-1 font-sans"},"WIFI PASSWORD"),e('span',{className:"font-mono font-black text-2xl font-sans "+(cp?'text-green-600':'text-slate-400')},cp?'已就緒':i.p),cp&&e('div',{className:"absolute right-4 top-1/2 -translate-y-1/2 flex gap-2"},e('button',{onClick:()=>setQrM({s:i.s,p:i.p,c:i.c}),className:"w-12 h-12 flex items-center justify-center rounded-xl bg-white border border-slate-200 shadow-md transition-all active:scale-90 font-sans text-blue-600"},e('svg',{xmlns:"http://www.w3.org/2000/svg",width:"24",height:"24",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"2.5",strokeLinecap:"round",strokeLinejoin:"round"},e('rect',{width:"5",height:"5",x:"3",y:"3",rx:"1"}),e('rect',{width:"5",height:"5",x:"16",y:"3",rx:"1"}),e('rect',{width:"5",height:"5",x:"3",y:"16",rx:"1"}),e('path',{d:"M21 16h-3a2 2 0 0 0-2 2v3"}),e('path',{d:"M21 21v.01"}),e('path',{d:"M12 7v3a2 2 0 0 1-2 2H7"}),e('path',{d:"M3 12h.01"}),e('path',{d:"M12 3h.01"}),e('path',{d:"M12 16v.01"}),e('path',{d:"M16 12h1"}),e('path',{d:"M21 12v.01"}),e('path',{d:"M12 21v-1"}))),e('button',{onClick:doC,className:"w-12 h-12 flex items-center justify-center rounded-xl bg-white border border-slate-200 shadow-md transition-all active:scale-90 font-sans "+(isC?'text-green-500 border-green-300':'text-blue-600')},isC?'✔':'📋'))))})),qrM&&e('div',{className:"fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in",onClick:()=>setQrM(null)},e('div',{className:"bg-white rounded-[2.5rem] p-8 shadow-2xl flex flex-col items-center",onClick:ev=>ev.stopPropagation()},e('h3',{className:"text-2xl font-black text-slate-800 mb-1"},qrM.c),e('p',{className:"text-blue-600 font-black font-mono text-3xl mb-6"},qrM.s),e('img',{id:"bm-qr-img",className:"w-64 h-64 mb-6 rounded-xl border-4 border-slate-50 shadow-sm"}),e('p',{className:"text-slate-600 font-bold tracking-widest text-xl bg-slate-100 px-5 py-3 rounded-2xl mb-8"},qrM.p),e('button',{onClick:()=>setQrM(null),className:"w-full py-5 bg-slate-800 active:bg-slate-700 text-white rounded-2xl font-black text-xl"},"關閉視窗"))))};if(window.ReactDOM.createRoot){window.ReactDOM.createRoot(rootDiv).render(e(App));}else{window.ReactDOM.render(e(App),rootDiv);}})()`;
-                return `javascript:void(${coreScript})`;
+                const coreScript = `(async function(){if(document.getElementById('fjm-root'))return;function l(s,g,c){return new Promise(r=>{if(window[g]&&window[g][c])return r();const t=document.createElement('script');t.src=s;t.onload=r;document.head.appendChild(t)})};await l('https://cdn.tailwindcss.com','tailwind','config');await l('https://unpkg.com/react@18/umd/react.production.min.js','React','useRef');await l('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js','ReactDOM','createRoot');await l('https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js','QRCode','toDataURL');const rootDiv=document.createElement('div');rootDiv.id='fjm-root';rootDiv.style.cssText='position:fixed;inset:0;z-index:9999999;background:#f8fafc;overflow-y:auto;';document.body.appendChild(rootDiv);const{useState,useEffect,useMemo,useRef,createElement:e}=window.React;const DATA=${JSON.stringify(compact)};const GAS_LINK="${GAS_URL}";const APP_VER="${APP_VERSION}";const App=()=>{const[s,setS]=useState('');const[c,setC]=useState(null);const[d,setD]=useState(DATA.map(x=>({...x,p:"讀取中..."})));const[ld,setLd]=useState(true);const[st,setSt]=useState('idle');const[qrM,setQrM]=useState(null);const[qrUrl,setQrUrl]=useState('');const stopRef=useRef(false);useEffect(()=>{fetch(GAS_LINK).then(r=>r.json()).then(j=>{if(j.success&&j.data)setD(j.data);setLd(false);}).catch(()=>setLd(false));},[]);useEffect(()=>{if(qrM&&window.QRCode){window.QRCode.toDataURL('WIFI:S:'+qrM.s+';T:WPA;P:'+qrM.p+';;',{width:300,margin:2,color:{dark:'#0f172a',light:'#ffffff'}},function(err,url){if(!err)setQrUrl(url);});}else{setQrUrl('');}},[qrM]);const doSync=async()=>{setSt('syncing');stopRef.current=false;const res=[["教室","SSID","密碼","更新時間"]];for(const a of DATA){if(stopRef.current)break;try{const r=await fetch("/api/qrcode_searching?ssid="+a.s);const j=await r.json();if(j.success&&j.data[0]){const p=j.data[0].ss_password.replace(/(.{4})/g,'$1 ').trim();res.push([a.c,a.s,p,new Date().toLocaleString()]);}}catch(e){}await new Promise(r=>setTimeout(r,300));}if(!stopRef.current){try{await fetch(GAS_LINK,{method:"POST",mode:"no-cors",body:JSON.stringify({data:res})});setSt('done');}catch(e){setSt('error');}}else{setSt('idle');}setTimeout(()=>setSt('idle'),3000);};const doScan=async()=>{setSt('scanning');stopRef.current=false;const res=[["SSID","密碼","比對狀態","更新時間"]];const cands=[];for(let f=1;f<=5;f++){for(let r=1;r<=50;r++){cands.push('FJM-'+f+(r<10?'0'+r:r));}}const extras=['ART','TEST','LIB','LAB','MUSIC','OFFICE'];extras.forEach(x=>cands.push('FJM-'+x));for(let i=0;i<cands.length;i++){if(stopRef.current)break;let ssid=cands[i];setS('掃描中 ('+Math.round((i/cands.length)*100)+'%): '+ssid);try{const r=await fetch("/api/qrcode_searching?ssid="+ssid);const j=await r.json();if(j.success&&j.data[0]){const p=j.data[0].ss_password.replace(/(.{4})/g,'$1 ').trim();const isM=DATA.some(d=>d.s===ssid)?"✅ 已在清單":"❌ 漏填";res.push([ssid,p,isM,new Date().toLocaleString()]);}}catch(e){}await new Promise(r=>setTimeout(r,800));}if(!stopRef.current){try{await fetch(GAS_LINK,{method:"POST",mode:"no-cors",body:JSON.stringify({type:"backup",data:res})});setSt('backup_done');}catch(e){setSt('error');}}setS('');setTimeout(()=>setSt('idle'),3000);};const f=useMemo(()=>!s.trim()?d:d.filter(i=>i.s.toLowerCase().includes(s.toLowerCase())||i.c.includes(s)),[s,d]);return e('div',{className:"max-w-md mx-auto bg-slate-50 min-h-screen flex flex-col font-sans"},e('div',{className:"p-6 bg-white border-b sticky top-0 z-10 shadow-sm text-slate-900 font-sans"},e('div',{className:"flex justify-between items-center mb-6"},e('h1',{className:"text-3xl font-black text-slate-800 flex items-center gap-3 font-sans"},"FJM 安全同步",e('span',{className:"text-sm bg-green-100 text-green-700 px-3 py-1 rounded-lg font-bold font-sans"},APP_VER)),e('button',{onClick:()=>document.getElementById('fjm-root').remove(),className:"text-slate-400 font-black p-3 text-xl bg-slate-100 rounded-full w-12 h-12 flex items-center justify-center font-sans transition-colors"},"✕")),e('div',{className:"flex flex-col gap-3 mb-6"},(st==='syncing'||st==='scanning')?e('button',{onClick:()=>stopRef.current=true,className:"w-full py-6 bg-red-500 text-white rounded-[1.5rem] font-black text-2xl shadow-lg flex items-center justify-center gap-3 animate-pulse font-sans"},e('div',{className:"w-5 h-5 bg-white rounded-sm"}),"立即停止"):e('div',{className:"flex flex-col gap-3 font-sans"},e('button',{onClick:doSync,className:"w-full py-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-[1.5rem] font-black text-2xl shadow-lg transition-all font-sans"},st==='done'?'✅ 已更新查詢表':'☁️ 同步現有名單'),e('button',{onClick:doScan,className:"w-full py-4 bg-slate-800 text-white rounded-[1.5rem] font-black text-xl shadow-lg transition-all font-sans"},st==='backup_done'?'✅ 已建立備份表！':'📦 尋找漏填設備 (500內)'))),e('input',{className:"w-full p-5 rounded-2xl bg-slate-100 focus:bg-white border-2 border-transparent focus:border-blue-500 font-black text-2xl outline-none transition-all font-sans",placeholder:"搜尋班級...",value:s,readOnly:(st==='scanning'||st==='syncing'),onChange:ev=>setS(ev.target.value)})),e('div',{className:"p-5 pb-24 flex flex-col gap-5 font-sans"},f.map(i=>{const cp=i.p&&i.p!=="讀取中...";const isC=c===i.s;const doC=()=>{if(!cp)return;const ta=document.createElement('textarea');ta.value=i.p.replace(/\\s+/g,'');document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);setC(i.s);setTimeout(()=>setC(null),2000);};return e('div',{key:i.s,className:"bg-white border border-slate-200 rounded-[1.5rem] p-6 shadow-sm relative font-sans"},e('div',{className:"flex justify-between items-center mb-5 font-sans"},e('span',{className:"bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-lg font-black font-sans"},i.c),e('span',{className:"text-slate-700 font-bold font-mono text-2xl font-sans"},i.s)),e('div',{className:"bg-slate-50 rounded-2xl p-5 pr-[110px] relative flex flex-col justify-center min-h-[5.5rem] font-sans"},e('span',{className:"text-slate-400 text-sm font-black tracking-widest uppercase mb-1 font-sans"},"WIFI PASSWORD"),e('span',{className:"font-mono font-black text-2xl font-sans "+(cp?'text-green-600':'text-slate-400')},cp?'已就緒':i.p),cp&&e('div',{className:"absolute right-4 top-1/2 -translate-y-1/2 flex gap-2"},e('button',{onClick:()=>setQrM({s:i.s,p:i.p,c:i.c}),className:"w-12 h-12 flex items-center justify-center rounded-xl bg-white border border-slate-200 shadow-md transition-all active:scale-90 font-sans text-blue-600"},e('svg',{xmlns:"http://www.w3.org/2000/svg",width:"24",height:"24",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"2.5",strokeLinecap:"round",strokeLinejoin:"round"},e('rect',{width:"5",height:"5",x:"3",y:"3",rx:"1"}),e('rect',{width:"5",height:"5",x:"16",y:"3",rx:"1"}),e('rect',{width:"5",height:"5",x:"3",y:"16",rx:"1"}),e('path',{d:"M21 16h-3a2 2 0 0 0-2 2v3"}),e('path',{d:"M21 21v.01"}),e('path',{d:"M12 7v3a2 2 0 0 1-2 2H7"}),e('path',{d:"M3 12h.01"}),e('path',{d:"M12 3h.01"}),e('path',{d:"M12 16v.01"}),e('path',{d:"M16 12h1"}),e('path',{d:"M21 12v.01"}),e('path',{d:"M12 21v-1"}))),e('button',{onClick:doC,className:"w-12 h-12 flex items-center justify-center rounded-xl bg-white border border-slate-200 shadow-md transition-all active:scale-90 font-sans "+(isC?'text-green-500 border-green-300':'text-blue-600')},isC?'✔':'📋'))))})),qrM&&e('div',{className:"fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in",onClick:()=>setQrM(null)},e('div',{className:"bg-white rounded-[2.5rem] p-8 shadow-2xl flex flex-col items-center max-w-sm w-full",onClick:ev=>ev.stopPropagation()},e('h3',{className:"text-2xl font-black text-slate-800 mb-2"},qrM.c),e('p',{className:"text-blue-600 font-black font-mono text-3xl mb-6 tracking-wider"},qrM.s),qrUrl?e('img',{src:qrUrl,className:"w-64 h-64 mb-6 rounded-xl border-4 border-slate-50 shadow-sm"}):e('div',{className:"w-64 h-64 mb-6 rounded-xl border-4 border-slate-50 shadow-sm flex items-center justify-center bg-slate-100"},e('span',{className:"text-slate-400 font-bold text-xl"},"載入中...")),e('p',{className:"text-slate-600 font-bold tracking-widest text-xl bg-slate-100 px-5 py-3 rounded-2xl mb-8"},"密碼: "+qrM.p),e('button',{onClick:()=>setQrM(null),className:"w-full py-5 bg-slate-800 active:bg-slate-700 text-white rounded-2xl font-black text-xl transition-all"},"關閉視窗"))))};if(window.ReactDOM.createRoot){window.ReactDOM.createRoot(rootDiv).render(e(App));}else{window.ReactDOM.render(e(App),rootDiv);}})()`;
+                return `javascript:void(${coreScript.replace(/\n/g, '')})`;
             }, [data]);
 
             const handleCopyBookmarklet = () => {
@@ -347,7 +347,7 @@
                     </div>
                 </div>
 
-                {/* --- QR Code 彈出視窗 --- */}
+                {/* --- ★ 修正 3：QR Code 彈出視窗使用 img src 綁定 state --- */}
                 {qrModal.show && (
                     <div 
                         className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in"
@@ -360,12 +360,18 @@
                             <h3 className="text-2xl font-black text-slate-800 mb-2">{qrModal.c}</h3>
                             <p className="text-blue-600 font-black font-mono text-3xl mb-6 tracking-wider">{qrModal.ssid}</p>
                             
-                            {/* QR Code 圖片容器 */}
-                            <img 
-                                id="qr-code-image" 
-                                className="w-64 h-64 mb-6 rounded-xl border-4 border-slate-50 shadow-sm" 
-                                alt="Wi-Fi QR Code" 
-                            />
+                            {/* ★ 使用 state 網址，如果還在生成就顯示載入中 */}
+                            {qrUrl ? (
+                                <img 
+                                    src={qrUrl} 
+                                    className="w-64 h-64 mb-6 rounded-xl border-4 border-slate-50 shadow-sm" 
+                                    alt="Wi-Fi QR Code" 
+                                />
+                            ) : (
+                                <div className="w-64 h-64 mb-6 rounded-xl border-4 border-slate-50 shadow-sm flex items-center justify-center bg-slate-100">
+                                    <span className="text-slate-400 font-bold text-xl">載入中...</span>
+                                </div>
+                            )}
                             
                             <p className="text-slate-600 font-bold tracking-widest text-xl bg-slate-100 px-5 py-3 rounded-2xl mb-8">
                                 密碼: {qrModal.pwd}
