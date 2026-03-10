@@ -51,116 +51,22 @@
             ExternalLink: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
         };
 
-        const DEFAULT_DATA = [
-            { id: 101, ssid: 'FJM-101', classroom: '802班', p: '無資料' },
-            { id: 102, ssid: 'FJM-102', classroom: '保健中心', p: '無資料' },
-            { id: 103, ssid: 'FJM-103', classroom: '學務處', p: '無資料' },
-            { id: 104, ssid: 'FJM-104', classroom: '晤談室', p: '無資料' },
-            { id: 105, ssid: 'FJM-105', classroom: '學務處', p: '無資料' },
-            { id: 107, ssid: 'FJM-107', classroom: '總務處', p: '無資料' },
-            { id: 108, ssid: 'FJM-108', classroom: '人事室', p: '無資料' },
-            { id: 109, ssid: 'FJM-109', classroom: '會計室', p: '無資料' },
-            { id: 110, ssid: 'FJM-110', classroom: '輔導處', p: '無資料' },
-            { id: 111, ssid: 'FJM-111', classroom: '諮商室', p: '無資料' },
-            { id: 112, ssid: 'FJM-112', classroom: '資源班', p: '無資料' },
-            { id: 114, ssid: 'FJM-114', classroom: '理化教室(1)', p: '無資料' },
-            { id: 116, ssid: 'FJM-116', classroom: '總務處儲藏室', p: '無資料' },
-            { id: 117, ssid: 'FJM-117', classroom: '生物教室', p: '無資料' },
-            { id: 118, ssid: 'FJM-118', classroom: '烹飪教室', p: '無資料' },
-            { id: 120, ssid: 'FJM-120', classroom: '南1東', p: '無資料' },
-            { id: 121, ssid: 'FJM-121', classroom: '806班', p: '無資料' },
-            { id: 122, ssid: 'FJM-122', classroom: '704班', p: '無資料' },
-            { id: 123, ssid: 'FJM-123', classroom: '703班', p: '無資料' },
-            { id: 125, ssid: 'FJM-125', classroom: '702班', p: '無資料' },
-            { id: 126, ssid: 'FJM-126', classroom: '701班', p: '無資料' },
-            { id: 127, ssid: 'FJM-127', classroom: '南1西', p: '無資料' },
-            { id: 128, ssid: 'FJM-128', classroom: '教專', p: '無資料' },
-            { id: 201, ssid: 'FJM-201', classroom: '哺乳室', p: '無資料' },
-            { id: 202, ssid: 'FJM-202', classroom: '916班', p: '無資料' },
-            { id: 203, ssid: 'FJM-203', classroom: '915班', p: '無資料' },
-            { id: 204, ssid: 'FJM-204', classroom: '914班', p: '無資料' },
-            { id: 205, ssid: 'FJM-205', classroom: '913班', p: '無資料' },
-            { id: 207, ssid: 'FJM-207', classroom: '912班', p: '無資料' },
-            { id: 208, ssid: 'FJM-208', classroom: '911班', p: '無資料' },
-            { id: 209, ssid: 'FJM-209', classroom: '910班', p: '無資料' },
-            { id: 210, ssid: 'FJM-210', classroom: '909班', p: '無資料' },
-            { id: 212, ssid: 'FJM-212', classroom: '團諮室', p: '無資料' },
-            { id: 213, ssid: 'FJM-213', classroom: '資優教室2', p: '無資料' },
-            { id: 215, ssid: 'FJM-215', classroom: '資優教室1', p: '無資料' },
-            { id: 216, ssid: 'FJM-216', classroom: '東2中', p: '無資料' },
-            { id: 218, ssid: 'FJM-218', classroom: '電腦教室(2)', p: '無資料' },
-            { id: 219, ssid: 'FJM-219', classroom: '檔案室', p: '無資料' },
-            { id: 221, ssid: 'FJM-221', classroom: '電腦教室3', p: '無資料' },
-            { id: 222, ssid: 'FJM-222', classroom: '801班', p: '無資料' },
-            { id: 223, ssid: 'FJM-223', classroom: '803班', p: '無資料' },
-            { id: 224, ssid: 'FJM-224', classroom: '804班', p: '無資料' },
-            { id: 226, ssid: 'FJM-226', classroom: '810班', p: '無資料' },
-            { id: 227, ssid: 'FJM-227', classroom: '717班', p: '無資料' },
-            { id: 228, ssid: 'FJM-228', classroom: '817班', p: '無資料' },
-            { id: 229, ssid: 'FJM-229', classroom: '917班', p: '無資料' },
-            { id: 301, ssid: 'FJM-301', classroom: '902班', p: '無資料' },
-            { id: 302, ssid: 'FJM-302', classroom: '903班', p: '無資料' },
-            { id: 303, ssid: 'FJM-303', classroom: '904班', p: '無資料' },
-            { id: 304, ssid: 'FJM-304', classroom: '設備組', p: '無資料' },
-            { id: 306, ssid: 'FJM-306', classroom: '905班', p: '無資料' },
-            { id: 307, ssid: 'FJM-307', classroom: '906班', p: '無資料' },
-            { id: 308, ssid: 'FJM-308', classroom: '907班', p: '無資料' },
-            { id: 309, ssid: 'FJM-309', classroom: '908班', p: '無資料' },
-            { id: 310, ssid: 'FJM-310', classroom: '閱覽室', p: '無資料' },
-            { id: 311, ssid: 'FJM-311', classroom: '圖書館', p: '無資料' },
-            { id: 312, ssid: 'FJM-312', classroom: '音樂教室2', p: '無資料' },
-            { id: 313, ssid: 'FJM-313', classroom: '多元教室1', p: '無資料' },
-            { id: 315, ssid: 'FJM-315', classroom: '808班', p: '無資料' },
-            { id: 316, ssid: 'FJM-316', classroom: '807班', p: '無資料' },
-            { id: 317, ssid: 'FJM-317', classroom: '805班', p: '無資料' },
-            { id: 318, ssid: 'FJM-318', classroom: '705班', p: '無資料' },
-            { id: 320, ssid: 'FJM-320', classroom: '706班', p: '無資料' },
-            { id: 321, ssid: 'FJM-321', classroom: '707班', p: '無資料' },
-            { id: 322, ssid: 'FJM-322', classroom: '708班', p: '無資料' },
-            { id: 323, ssid: 'FJM-323', classroom: '709班', p: '無資料' },
-            { id: 401, ssid: 'FJM-401', classroom: '北4西', p: '無資料' },
-            { id: 402, ssid: 'FJM-402', classroom: '901班', p: '無資料' },
-            { id: 403, ssid: 'FJM-403', classroom: '816班', p: '無資料' },
-            { id: 404, ssid: 'FJM-404', classroom: '815班', p: '無資料' },
-            { id: 405, ssid: 'FJM-405', classroom: '814班', p: '無資料' },
-            { id: 407, ssid: 'FJM-407', classroom: '813班', p: '無資料' },
-            { id: 408, ssid: 'FJM-408', classroom: '812班', p: '無資料' },
-            { id: 409, ssid: 'FJM-409', classroom: '811班', p: '無資料' },
-            { id: 410, ssid: 'FJM-410', classroom: '809班', p: '無資料' },
-            { id: 412, ssid: 'FJM-412', classroom: '獨研室', p: '無資料' },
-            { id: 413, ssid: 'FJM-413', classroom: '理化教室(2)', p: '無資料' },
-            { id: 414, ssid: 'FJM-414', classroom: '視聽教室', p: '無資料' },
-            { id: 416, ssid: 'FJM-416', classroom: '多功能藝文教室', p: '無資料' },
-            { id: 418, ssid: 'FJM-418', classroom: '多元教室', p: '無資料' },
-            { id: 419, ssid: 'FJM-419', classroom: '716班', p: '無資料' },
-            { id: 420, ssid: 'FJM-420', classroom: '715班', p: '無資料' },
-            { id: 421, ssid: 'FJM-421', classroom: '714班', p: '無資料' },
-            { id: 423, ssid: 'FJM-423', classroom: '713班', p: '無資料' },
-            { id: 424, ssid: 'FJM-424', classroom: '712班', p: '無資料' },
-            { id: 425, ssid: 'FJM-425', classroom: '711班', p: '無資料' },
-            { id: 426, ssid: 'FJM-426', classroom: '710班', p: '無資料' }
-        ];
+        // 這是作為介面尚未連上雲端時的最低限度版面
+        const FALLBACK_DATA = [{ c: '載入中', s: 'FJM-載入中', p: '載入中' }];
 
-        // 容錯備用資料結構
-        const fallbackData = DEFAULT_DATA.map(item => ({
-            c: item.classroom,
-            s: item.ssid,
-            p: "尚未同步"
-        }));
-
-        // Google Apps Script 網址
+        // Google Apps Script 網址 (請確認您已發佈為最新版本)
         const GAS_URL = "https://script.google.com/macros/s/AKfycby5AmcAwSnAOE-Khz9t2dCIzyHugcADSMKJYk4WQGbc3srurSMxIR8DcxNjd6tSchRy/exec";
 
         function App() {
             const [activeTab, setActiveTab] = useState('query'); // 'query' | 'tutorial'
-            const [data, setData] = useState(fallbackData);
+            const [data, setData] = useState(FALLBACK_DATA);
             const [loading, setLoading] = useState(true);
             const [copiedBM, setCopiedBM] = useState(false);
-            const [copiedPwdId, setCopiedPwdId] = useState(null); // 追蹤目前複製了哪個密碼
+            const [copiedPwdId, setCopiedPwdId] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
             const [fetchError, setFetchError] = useState('');
 
-            // 網頁載入時從試算表抓取資料
+            // 網頁載入時從試算表抓取資料 (現在資料是根據「班級代號」動態生成的)
             useEffect(() => {
                 fetch(GAS_URL)
                     .then(res => {
@@ -171,24 +77,26 @@
                         if(json.success && json.data && json.data.length > 0) {
                             setData(json.data);
                         } else {
-                            setData(fallbackData); 
+                            setFetchError(json.error || "雲端資料為空。請確認試算表有建立「班級代號」分頁。");
+                            setData([]); 
                         }
                         setLoading(false);
                     })
                     .catch(err => {
                         console.log("連線限制，載入備用名單", err);
-                        setData(fallbackData);
-                        setFetchError("無法連線至雲端資料庫，目前顯示離線備用名單。");
+                        setData(FALLBACK_DATA);
+                        setFetchError("無法連線至雲端資料庫，請檢查 CORS 或重新部署 Apps Script。");
                         setLoading(false);
                     });
             }, []);
 
-            // --- 產生書籤代碼 (字體全放大版本) ---
+            // --- 產生書籤代碼 (動態根據 data 產生) ---
             const bookmarkletCode = useMemo(() => {
-                const compact = DEFAULT_DATA.map(i => ({ s: i.ssid, c: i.classroom }));
-                const coreScript = `(async function(){if(document.getElementById('fjm-root'))return;function l(s,g){return new Promise(r=>{if(window[g])return r();const t=document.createElement('script');t.src=s;t.onload=r;document.head.appendChild(t)})};await l('https://cdn.tailwindcss.com','tailwind');await l('https://unpkg.com/react@18/umd/react.production.min.js','React');await l('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js','ReactDOM');const rootDiv=document.createElement('div');rootDiv.id='fjm-root';rootDiv.style.cssText='position:fixed;inset:0;z-index:9999999;background:#f8fafc;overflow-y:auto;';document.body.appendChild(rootDiv);const{useState,useEffect,useMemo,createElement:e}=React;const DATA=${JSON.stringify(compact)};const GAS_LINK="${GAS_URL}";const App=()=>{const[s,setS]=useState('');const[c,setC]=useState(null);const[d,setD]=useState(DATA.map(x=>({...x,p:"讀取中..."})));const[ld,setLd]=useState(true);const[err,setErr]=useState(null);useEffect(()=>{fetch(GAS_LINK).then(r=>{if(!r.ok)throw new Error();return r.json()}).then(j=>{if(j.success&&j.data&&j.data.length>0){setD(j.data)}else{setD(DATA.map(x=>({...x,p:"暫無雲端資料"})))}setLd(false)}).catch(()=>{setD(DATA.map(x=>({...x,p:"連線遭擋或超時"})));setLd(false)})},[]);const f=useMemo(()=>!s.trim()?d:d.filter(i=>i.s.toLowerCase().includes(s.toLowerCase())||i.c.includes(s)),[s,d]);return e('div',{className:"p-6 max-w-4xl mx-auto font-sans text-slate-900"},e('div',{className:"flex justify-between items-center mb-6"},e('h1',{className:"text-3xl font-black text-blue-600"},"FJM 雲端直讀版"),e('button',{onClick:()=>document.getElementById('fjm-root').remove(),className:"text-slate-500 font-bold p-3 hover:bg-slate-200 rounded-xl text-lg"},"關閉 ✕")),e('input',{className:"w-full p-5 rounded-2xl border-2 mb-6 shadow-sm outline-none focus:border-blue-500 font-bold text-xl",placeholder:"搜尋班級...",value:s,onChange:ev=>setS(ev.target.value)}),err?e('div',{className:"mb-4 text-lg font-bold text-red-500 bg-red-50 p-4 rounded-2xl border border-red-100"},err):null,ld?e('div',{className:"text-center py-10 font-bold text-blue-500 animate-pulse text-2xl"},"☁️ 正在從 Google 試算表載入資料..."):e('div',{className:"grid gap-5 md:grid-cols-2 font-sans"},f.map(i=>e('div',{key:i.s,className:"p-6 bg-white rounded-[2rem] border shadow-sm flex flex-col"},e('div',{className:"flex justify-between items-start mb-3"},e('span',{className:"text-base font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg"},i.c),e('h3',{className:"text-2xl font-black text-slate-500 font-mono"},i.s)),e('div',{className:"mt-auto bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center"},e('div',null,e('p',{className:"text-sm text-slate-500 font-bold uppercase mb-1"},"Wifi Password"),e('p',{className:"font-mono text-3xl font-black text-slate-900 tracking-tight py-1"},i.p||'無資料')),e('button',{onClick:()=>{const ta=document.createElement('textarea');ta.value=(i.p||'').replace(/\\s+/g,'');document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);setC(i.s);setTimeout(()=>setC(null),2000)},className:"px-6 py-4 rounded-2xl text-white font-bold bg-blue-600 shadow-md active:scale-95 text-xl flex items-center gap-2"},c===i.s?'已複製':'複製密碼'))))))};ReactDOM.createRoot(rootDiv).render(e(App))})()`;
+                // 將當前從試算表讀到的動態名單，打包進書籤中
+                const compact = data.map(i => ({ s: i.s, c: i.c }));
+                const coreScript = `(async function(){if(document.getElementById('fjm-root'))return;function l(s,g){return new Promise(r=>{if(window[g])return r();const t=document.createElement('script');t.src=s;t.onload=r;document.head.appendChild(t)})};await l('https://cdn.tailwindcss.com','tailwind');await l('https://unpkg.com/react@18/umd/react.production.min.js','React');await l('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js','ReactDOM');const rootDiv=document.createElement('div');rootDiv.id='fjm-root';rootDiv.style.cssText='position:fixed;inset:0;z-index:9999999;background:#f8fafc;overflow-y:auto;';document.body.appendChild(rootDiv);const{useState,useEffect,useMemo,createElement:e}=React;const DATA=${JSON.stringify(compact)};const GAS_LINK="${GAS_URL}";const getHP=(p)=>{if(!p||p==="尚未同步"||p==="無資料"||p==="讀取中..."||p==="暫無雲端資料"||p==="連線遭擋或超時")return p;return '••••••••••••'};const App=()=>{const[s,setS]=useState('');const[c,setC]=useState(null);const[d,setD]=useState(DATA.map(x=>({...x,p:"讀取中..."})));const[ld,setLd]=useState(true);const[err,setErr]=useState(null);const[st,setSt]=useState('idle');useEffect(()=>{fetch(GAS_LINK).then(r=>{if(!r.ok)throw new Error();return r.json()}).then(j=>{if(j.success&&j.data&&j.data.length>0){setD(j.data)}else{setD(DATA.map(x=>({...x,p:"暫無雲端資料"})))}setLd(false)}).catch(()=>{setD(DATA.map(x=>({...x,p:"連線遭擋或超時"})));setLd(false)})},[]);const doSync=async()=>{setSt('syncing');const res=[["教室","SSID","密碼","更新時間"]];for(const a of DATA){try{const r=await fetch("/api/qrcode_searching?ssid="+a.s);const j=await r.json();if(j.success&&j.data&&j.data.length>0){const p=j.data[0].ss_password.replace(/(.{4})/g,'$1 ').trim();res.push([a.c,a.s,p,new Date().toLocaleString()]);}}catch(e){}}try{await fetch(GAS_LINK,{method:"POST",mode:"no-cors",body:JSON.stringify({data:res})});setSt('done');setTimeout(()=>{setSt('idle');fetch(GAS_LINK).then(r=>r.json()).then(j=>{if(j.success)setD(j.data)})},3000)}catch(e){setSt('error')}};const f=useMemo(()=>!s.trim()?d:d.filter(i=>i.s.toLowerCase().includes(s.toLowerCase())||i.c.includes(s)),[s,d]);return e('div',{className:"p-6 max-w-4xl mx-auto font-sans text-slate-900"},e('div',{className:"flex flex-wrap justify-between items-center gap-4 mb-6"},e('h1',{className:"text-3xl font-black text-blue-600"},"FJM 雲端直讀版"),e('div',{className:"flex gap-2"},e('button',{onClick:doSync,className:"px-6 py-3 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white rounded-xl font-bold text-base shadow-md"},st==='syncing'?'⏳ 正在抓取中...':st==='done'?'✅ 已推送至試算表':st==='error'?'❌ 同步失敗':'☁️ 同步至試算表'),e('button',{onClick:()=>document.getElementById('fjm-root').remove(),className:"text-slate-500 font-bold px-4 py-3 hover:bg-slate-200 rounded-xl text-base"},"關閉 ✕"))),e('input',{className:"w-full p-5 rounded-2xl border-2 mb-6 shadow-sm outline-none focus:border-blue-500 font-bold text-xl",placeholder:"搜尋班級...",value:s,onChange:ev=>setS(ev.target.value)}),err?e('div',{className:"mb-4 text-lg font-bold text-red-500 bg-red-50 p-4 rounded-2xl border border-red-100"},err):null,ld?e('div',{className:"text-center py-10 font-bold text-blue-500 animate-pulse text-2xl"},"☁️ 正在從 Google 試算表載入資料..."):e('div',{className:"grid gap-5 md:grid-cols-2 font-sans"},f.map(i=>{const dp=getHP(i.p);const canCopy=i.p&&i.p!=="尚未同步"&&i.p!=="無資料"&&i.p!=="讀取中..."&&i.p!=="暫無雲端資料"&&i.p!=="連線遭擋或超時";const cp=(p)=>{if(!canCopy)return;const clean=p.replace(/\\s+/g,'');const ta=document.createElement('textarea');ta.value=clean;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);setC(i.s);setTimeout(()=>setC(null),2000)};return e('div',{key:i.s,className:"p-6 bg-white rounded-[2rem] border shadow-sm flex flex-col"},e('div',{className:"flex justify-between items-start mb-3"},e('span',{className:"text-base font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg"},i.c),e('h3',{className:"text-2xl font-black text-slate-500 font-mono"},i.s)),e('div',{className:"mt-auto bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center"},e('div',{className:"flex-1"},e('div',{className:"flex items-center gap-2 mb-1"},e('p',{className:"text-sm text-slate-500 font-bold uppercase"},"Wifi Password")),e('p',{className:"font-mono text-3xl font-black text-slate-900 tracking-tight py-1"},dp||'無資料')),canCopy&&e('button',{onClick:()=>cp(i.p),className:"px-6 py-4 rounded-2xl text-white font-bold bg-blue-600 shadow-md active:scale-95 text-xl flex items-center gap-2 ml-4 shrink-0"},c===i.s?'已複製':'複製密碼')))})))};ReactDOM.createRoot(rootDiv).render(e(App))})()`;
                 return `javascript:void(${coreScript})`;
-            }, []);
+            }, [data]);
 
             const handleCopyBookmarklet = () => {
                 const ta = document.createElement("textarea");
@@ -201,11 +109,9 @@
                 setTimeout(() => setCopiedBM(false), 5000);
             };
 
-            // 複製單一密碼到剪貼簿 (前端網頁版)
             const handleCopyPassword = (pwd, id) => {
                 if (!pwd || pwd === "尚未同步" || pwd === "無資料") return;
-                
-                const cleanPwd = pwd.replace(/\s+/g, ''); // 移除空格
+                const cleanPwd = pwd.replace(/\s+/g, '');
                 const ta = document.createElement("textarea");
                 ta.value = cleanPwd;
                 document.body.appendChild(ta);
@@ -219,29 +125,27 @@
 
             const filteredData = useMemo(() => {
                 const kw = searchTerm.toLowerCase();
-                return searchTerm.trim() ? data.filter(i => (i.s || i.ssid).toLowerCase().includes(kw) || (i.c || i.classroom).includes(kw)) : data;
+                return searchTerm.trim() ? data.filter(i => (i.s || '').toLowerCase().includes(kw) || (i.c || '').includes(kw)) : data;
             }, [searchTerm, data]);
 
             return (
                 <div className="min-h-screen w-full flex flex-col items-center bg-slate-50 font-sans pb-20">
                     
-                    {/* Header */}
                     <nav className="w-full bg-white border-b px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
                         <div className="flex items-center gap-4">
                             <div className="text-blue-600 bg-blue-50 p-2 rounded-xl"><Icons.Cloud /></div>
                             <div>
                                 <h1 className="text-2xl font-black text-slate-800 tracking-tighter uppercase leading-none">FJM Cloud</h1>
-                                <p className="text-sm font-bold text-blue-600 tracking-widest uppercase mt-1">Wi-Fi 查詢系統</p>
+                                <p className="text-sm font-bold text-blue-600 tracking-widest uppercase mt-1">Wi-Fi 動態查詢系統</p>
                             </div>
                         </div>
                         <a href="https://docs.google.com/spreadsheets/d/1LomQabtIlrmMnT0TxKCAectvxiINlMDnEc6QvZCEMbk/edit" target="_blank" className="flex items-center gap-2 p-3 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-all shadow-sm text-base font-bold border border-slate-200">
-                            <Icons.Database /> <span className="hidden sm:inline">資料庫</span>
+                            <Icons.Database /> <span className="hidden sm:inline">編輯班級代號</span>
                         </a>
                     </nav>
 
                     <main className="w-full max-w-5xl px-4 md:px-6 py-8">
                         
-                        {/* 分頁切換器 (Tabs) */}
                         <div className="flex space-x-3 mb-10 bg-slate-200/50 p-2 rounded-2xl w-full max-w-lg mx-auto">
                             <button 
                                 onClick={() => setActiveTab('query')} 
@@ -257,14 +161,10 @@
                             </button>
                         </div>
 
-                        {/* =========================================================
-                            Tab 1: 查詢密碼面板 (主畫面)
-                        ========================================================= */}
                         {activeTab === 'query' && (
                             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                                 <div className="bg-white rounded-[3rem] p-8 md:p-12 border border-slate-200 shadow-xl relative min-h-[60vh]">
                                     
-                                    {/* 巨大搜尋框 */}
                                     <div className="mb-12 max-w-3xl mx-auto">
                                         <div className="relative group">
                                             <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
@@ -272,7 +172,7 @@
                                             </div>
                                             <input 
                                                 type="text" 
-                                                placeholder="輸入班級或代號搜尋 (例如: 802班, 保健中心)..." 
+                                                placeholder="搜尋班級或代號..." 
                                                 className="w-full pl-16 pr-6 py-6 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-blue-500 focus:bg-white outline-none font-black text-xl transition-all shadow-inner placeholder:font-bold placeholder:text-slate-400 text-slate-800"
                                                 value={searchTerm} 
                                                 onChange={e=>setSearchTerm(e.target.value)} 
@@ -281,22 +181,20 @@
                                         </div>
                                     </div>
 
-                                    {/* 錯誤警告區塊 */}
                                     {fetchError && !loading && (
                                         <div className="mb-10 max-w-3xl mx-auto bg-red-50 border border-red-200 p-5 rounded-2xl flex items-start gap-4 animate-in fade-in">
                                             <div className="text-red-500 shrink-0 w-6 h-6 mt-1"><Icons.TriangleAlert /></div>
                                             <div>
-                                                <p className="text-lg font-bold text-red-800 mb-2">離線模式</p>
+                                                <p className="text-lg font-bold text-red-800 mb-2">資料庫連接異常</p>
                                                 <p className="text-base text-red-600 leading-relaxed font-medium">{fetchError}</p>
                                             </div>
                                         </div>
                                     )}
 
-                                    {/* 狀態指示 */}
                                     {loading ? (
                                         <div className="py-32 text-center text-blue-500 font-bold animate-pulse flex flex-col items-center gap-6">
                                             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center"><Icons.Cloud /></div>
-                                            <span className="text-2xl">正在連接雲端資料庫...</span>
+                                            <span className="text-2xl">正在讀取「班級代號」對應表...</span>
                                         </div>
                                     ) : (
                                         <div>
@@ -304,37 +202,37 @@
                                                 <p className="text-xl font-black text-slate-800 flex items-center gap-3">
                                                     <Icons.BookOpen /> 全校節點列表
                                                 </p>
-                                                <p className="text-base text-slate-500 font-bold bg-slate-100 px-4 py-2 rounded-xl">共 {filteredData.length} 筆</p>
+                                                <p className="text-base text-slate-500 font-bold bg-slate-100 px-4 py-2 rounded-xl">共載入 {filteredData.length} 筆對應</p>
                                             </div>
                                             
-                                            {/* 名單 Grid (含複製按鈕) */}
                                             {filteredData.length > 0 ? (
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                                     {filteredData.map(i => {
-                                                        const currentId = i.s || i.ssid;
+                                                        const currentId = i.s;
                                                         const isCopied = copiedPwdId === currentId;
                                                         const pwdText = i.p || "尚未讀取";
                                                         const canCopy = pwdText !== "尚未同步" && pwdText !== "無資料";
+                                                        const displayPwdText = canCopy ? '••••••••••••' : pwdText;
 
                                                         return (
                                                             <div key={currentId} className="bg-slate-50 border border-slate-100 rounded-[2rem] p-6 hover:bg-white hover:border-blue-300 hover:shadow-xl transition-all group flex flex-col justify-between">
                                                                 <div className="flex justify-between items-center mb-5">
-                                                                    <span className="text-base font-black text-blue-600 bg-blue-100 px-4 py-1.5 rounded-lg tracking-widest">{i.c || i.classroom}</span>
+                                                                    <span className="text-base font-black text-blue-600 bg-blue-100 px-4 py-1.5 rounded-lg tracking-widest">{i.c}</span>
                                                                     <span className="text-xl font-black text-slate-400 group-hover:text-blue-500 transition-colors font-mono">{currentId}</span>
                                                                 </div>
                                                                 <div className="bg-white border border-slate-200 p-4 rounded-2xl flex justify-between items-center">
-                                                                    <div>
-                                                                        <p className="text-sm font-black text-slate-400 mb-2 uppercase tracking-widest">Password</p>
+                                                                    <div className="flex-1">
+                                                                        <div className="flex items-center gap-2 mb-2">
+                                                                            <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Password</p>
+                                                                        </div>
                                                                         <p className={`font-mono text-3xl font-black tracking-tight py-1 ${canCopy ? 'text-slate-800' : 'text-slate-300'}`}>
-                                                                            {pwdText}
+                                                                            {displayPwdText}
                                                                         </p>
                                                                     </div>
-                                                                    
-                                                                    {/* 獨立複製按鈕 */}
                                                                     {canCopy && (
                                                                         <button 
                                                                             onClick={() => handleCopyPassword(pwdText, currentId)}
-                                                                            className={`p-4 rounded-xl flex items-center justify-center transition-all active:scale-90 ${isCopied ? 'bg-green-100 text-green-600' : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'}`}
+                                                                            className={`p-4 ml-4 shrink-0 rounded-xl flex items-center justify-center transition-all active:scale-90 ${isCopied ? 'bg-green-100 text-green-600' : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'}`}
                                                                             title="複製密碼"
                                                                         >
                                                                             {isCopied ? <Icons.Check /> : <Icons.Copy />}
@@ -357,61 +255,62 @@
                             </div>
                         )}
 
-                        {/* =========================================================
-                            Tab 2: 教學面板
-                        ========================================================= */}
                         {activeTab === 'tutorial' && (
                             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                {/* 英雄區塊 */}
                                 <section className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[3rem] p-10 md:p-14 text-white mb-10 shadow-2xl relative overflow-hidden">
                                     <div className="absolute top-0 right-0 w-80 h-80 opacity-10 translate-x-1/4 -translate-y-1/4"><Icons.Database /></div>
                                     <div className="relative z-10">
                                         <span className="bg-white/20 px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-widest mb-6 inline-block border border-white/30 backdrop-blur-sm">
-                                            在其它網頁也能查密碼
+                                            完全動態對應
                                         </span>
                                         <h2 className="text-4xl md:text-5xl font-black mb-8 tracking-tight leading-tight">
-                                            將查詢工具<br />安裝到手機書籤。
+                                            名單換了？<br />改試算表就好。
                                         </h2>
                                         <p className="text-blue-100 text-xl mb-10 font-medium opacity-90 max-w-xl leading-relaxed">
-                                            複製下方代碼並存為書籤。未來在任何網頁點擊該書籤，都能瞬間喚出密碼查詢面板！
+                                            此版本已經與您的試算表「班級代號」綁定！只要複製一次書籤，未來即使班級對應換了，外掛也能自動讀取最新對應表來同步密碼。
                                         </p>
                                         <button onClick={handleCopyBookmarklet} className={`w-full sm:w-auto px-10 py-6 rounded-[1.5rem] font-black text-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center gap-4 ${copiedBM ? 'bg-green-500' : 'bg-white text-blue-600 hover:bg-blue-50'}`}>
                                             {copiedBM ? <Icons.Check /> : <Icons.Zap />}
-                                            {copiedBM ? '啟動碼已複製！去更新書籤吧' : '複製外掛啟動碼'}
+                                            {copiedBM ? '啟動碼已複製！去更新書籤吧' : '複製動態版外掛代碼'}
                                         </button>
                                     </div>
                                 </section>
 
-                                {/* 手機安裝引導 & 問題排解 */}
                                 <div className="grid md:grid-cols-2 gap-8">
                                     <div className="bg-slate-900 rounded-[2.5rem] p-10 text-white shadow-xl">
-                                        <h3 className="text-3xl font-black mb-8 flex items-center gap-3"><Icons.Smartphone className="text-blue-400 w-10 h-10" /> 安裝三步驟</h3>
+                                        <h3 className="text-3xl font-black mb-8 flex items-center gap-3"><Icons.Smartphone className="text-blue-400 w-10 h-10" /> 如何執行同步？</h3>
                                         <div className="space-y-8 text-lg opacity-90 font-medium">
                                             <div className="flex gap-5 items-start">
                                                 <b className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center flex-shrink-0 font-black shadow-lg shadow-blue-500/30">1</b>
-                                                <p className="pt-1.5 text-slate-300">點擊上方按鈕複製代碼，接著在手機瀏覽器隨便將一個網頁「加入收藏(書籤)」。</p>
+                                                <p className="pt-1.5 text-slate-300">打開手機或電腦瀏覽器，設定一個名為「啟動」的書籤，網址貼上您剛複製的代碼。</p>
                                             </div>
                                             <div className="flex gap-5 items-start">
                                                 <b className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center flex-shrink-0 font-black shadow-lg shadow-blue-500/30">2</b>
-                                                <p className="pt-1.5 text-slate-300">去編輯剛剛存好的書籤：名稱改為「啟動」，<u className="text-yellow-400 font-bold decoration-2 underline-offset-4">網址全部刪除並貼上新代碼</u>。</p>
+                                                <p className="pt-1.5 text-slate-300">
+                                                    在學校打開 <a href="https://wifi-auth.kh.edu.tw/qrcode_searching" target="_blank" className="text-indigo-400 font-bold underline underline-offset-4 hover:text-indigo-300 transition-colors">教育局網頁</a>，點擊該「啟動」書籤。
+                                                </p>
                                             </div>
                                             <div className="flex gap-5 items-start">
                                                 <b className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center flex-shrink-0 font-black shadow-lg shadow-indigo-500/30">3</b>
                                                 <p className="pt-1 text-slate-300">
-                                                    現在，打開 <a href="https://wifi-auth.kh.edu.tw/qrcode_searching" target="_blank" className="text-indigo-400 font-bold underline underline-offset-4 hover:text-indigo-300 transition-colors">教育局網頁 <Icons.ExternalLink /></a>（或任何網頁）並點擊該書籤，查詢面板就會彈出來！
+                                                    點擊介面上方的 <span className="text-indigo-400 font-bold">「☁️ 同步至試算表」</span>，外掛就會根據最新的「班級代號」把密碼抓齊並丟到雲端。
                                                 </p>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="bg-amber-50 rounded-[2.5rem] p-10 border-2 border-amber-100 flex flex-col justify-center shadow-md">
                                         <div className="w-20 h-20 bg-amber-200 text-amber-700 rounded-2xl flex items-center justify-center mb-8"><Icons.Cloud /></div>
-                                        <h3 className="text-3xl font-black text-amber-900 mb-6">還有漏掉的密碼？</h3>
+                                        <h3 className="text-3xl font-black text-amber-900 mb-6">如果班級對應換了？</h3>
                                         <p className="text-xl text-amber-800 leading-relaxed font-medium mb-8">
-                                            如果在查詢頁面看到有班級顯示「尚未讀取」或「無資料」，這代表資料庫還沒抓到它。
+                                            完全不用改程式碼！只要進到您的 Google 試算表，把「班級代號」那一頁的內容更新即可。
                                         </p>
                                         <div className="bg-white p-6 rounded-2xl border border-amber-200">
-                                            <p className="text-lg font-bold text-slate-700">解決方法：</p>
-                                            <p className="text-base text-slate-500 mt-3 leading-relaxed">請打開您的 <a href="https://docs.google.com/spreadsheets/d/1LomQabtIlrmMnT0TxKCAectvxiINlMDnEc6QvZCEMbk/edit" target="_blank" className="text-blue-600 font-bold hover:underline">Google 試算表</a>，點擊上方選單的 <b>「📡 FJM 工具」</b> &gt; <b>「🔍 慢速補齊缺失的密碼」</b>，它會幫您自動重新抓取補齊。</p>
+                                            <p className="text-lg font-bold text-slate-700 mb-3">更新對應表注意事項：</p>
+                                            <ul className="text-base text-slate-500 leading-relaxed list-disc pl-5 space-y-2">
+                                                <li>第一欄放 <b>教室編號</b> (例如: #126)。</li>
+                                                <li>第二欄放 <b>班級名稱</b> (例如: 701，程式會自動補「班」字，或直接寫 保健中心)。</li>
+                                                <li>改完後，需要重新把這份網頁複製成外掛，在學校網頁點擊一次 <b>☁️ 同步至試算表</b> 即可！</li>
+                                            </ul>
                                         </div>
                                     </div>
                                 </div>
