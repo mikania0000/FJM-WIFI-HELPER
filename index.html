@@ -48,7 +48,7 @@
         
         // ★ 核心設定：請確保此網址為您最新部署的網頁應用程式網址 ★
         const GAS_URL = "https://script.google.com/macros/s/AKfycbxLaHMD45PfrLFBGAwTzElsmgiIarqJsOjbBeTItgDE0ZQydgjcPARUz6tlwFM4JJV8/exec";
-        const APP_VERSION = "v10.8.2";
+        const APP_VERSION = "v10.8.3"; // 更新版本號
 
         const Icons = {
             Search: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
@@ -90,6 +90,40 @@
                 }
                 if (sessionStorage.getItem('fjm_setup_auth') === 'true') setIsSetupUnlocked(true);
             }, []);
+
+            // ★ 動態渲染 Google 登入按鈕 (解決 React 與 Google 腳本衝突) ★
+            useEffect(() => {
+                if (!isLoggedIn) {
+                    const initGoogleSignIn = () => {
+                        if (window.google && window.google.accounts && window.google.accounts.id) {
+                            window.google.accounts.id.initialize({
+                                client_id: "553016940521-araovlp30ctbqn6um5rr49q3es5jm4jg.apps.googleusercontent.com",
+                                callback: window.handleCredentialResponse
+                            });
+                            const btnContainer = document.getElementById("google-btn-container");
+                            if (btnContainer) {
+                                window.google.accounts.id.renderButton(
+                                    btnContainer,
+                                    { theme: "outline", size: "large", shape: "pill", logo_alignment: "left" }
+                                );
+                            }
+                        }
+                    };
+
+                    if (window.google) {
+                        initGoogleSignIn();
+                    } else {
+                        // 設定計時器等待 Google 腳本載入
+                        const timer = setInterval(() => {
+                            if (window.google) {
+                                clearInterval(timer);
+                                initGoogleSignIn();
+                            }
+                        }, 100);
+                        return () => clearInterval(timer);
+                    }
+                }
+            }, [isLoggedIn]);
 
             const verifyAndLogin = async (email) => {
                 setLoginMsg('驗證中...');
@@ -177,13 +211,9 @@
                             <h1 className="text-4xl font-black text-slate-800 mb-2">FJM Cloud</h1>
                             <p className="text-slate-500 font-bold mb-8">校園 Wi-Fi 密碼查詢系統</p>
                             
-                            <div className="flex flex-col items-center gap-4">
-                                <div id="g_id_onload"
-                                     data-client_id="553016940521-araovlp30ctbqn6um5rr49q3es5jm4jg.apps.googleusercontent.com"
-                                     data-callback="handleCredentialResponse"
-                                     data-auto_prompt="false">
-                                </div>
-                                <div className="g_id_signin" data-type="standard" data-shape="pill" data-theme="outline" data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
+                            <div className="flex flex-col items-center justify-center min-h-[50px]">
+                                {/* 動態渲染的 Google 按鈕容器 */}
+                                <div id="google-btn-container"></div>
                             </div>
 
                             {loginMsg && <p className="mt-8 text-red-500 font-bold animate-shake text-lg">{loginMsg}</p>}
