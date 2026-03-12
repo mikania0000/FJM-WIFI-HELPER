@@ -9,14 +9,14 @@
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- 主網頁仍使用這個腳本來產生 QR，但書籤外掛會內建自己的引擎 -->
-    <script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
+    <!-- Google Sign-In SDK -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
         body { 
             font-family: 'Noto Sans TC', sans-serif; 
-            background-color: #e2e8f0; 
+            background-color: #f1f5f9; 
             -webkit-tap-highlight-color: transparent;
             margin: 0;
             overflow: hidden; 
@@ -25,10 +25,19 @@
         
         .animate-fade-in { animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        
         .animate-shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
         @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-3px, 0, 0); } 40%, 60% { transform: translate3d(3px, 0, 0); } }
         
         .safe-bottom { padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); }
+        
+        /* 登入畫面動畫背景 */
+        .login-bg {
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
+        @keyframes gradient { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
     </style>
 </head>
 <body>
@@ -37,364 +46,336 @@
     <script type="text/babel">
         const { useState, useMemo, useEffect, useRef, Fragment } = React;
         
-        const APP_VERSION = "v10.8";
+        // ★ 核心設定：請確保此網址為您最新部署的網頁應用程式網址 ★
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbxLaHMD45PfrLFBGAwTzElsmgiIarqJsOjbBeTItgDE0ZQydgjcPARUz6tlwFM4JJV8/exec";
+        const APP_VERSION = "v10.8.2";
 
         const Icons = {
-            Search: () => <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
-            Copy: () => <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>,
-            Check: () => <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>,
-            Zap: () => <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.7l11.4-12.2c.4-.4 1-.1 1 .4l-2 7.1H20l-11.4 12.2c-.4.4-1 .1-1-.4l2-7.1H4z"/></svg>,
-            Cloud: () => <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19c2.5 0 4.5-2 4.5-4.5 0-2.3-1.7-4.1-3.9-4.5a7 7 0 1 0-13.4 3C2.8 13.4 1 15.1 1 17.2 1 19.3 2.7 21 4.8 21h12.7c.3 0 .6-.1.9-.1V19z"/></svg>,
-            Database: () => <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>,
-            Settings: () => <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>,
-            Alert: () => <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>,
-            ExternalLink: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>,
-            Lock: () => <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
-            Smartphone: () => <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>,
-            QrCode: () => <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg>
+            Search: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
+            Copy: () => <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>,
+            Check: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>,
+            Cloud: () => <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19c2.5 0 4.5-2 4.5-4.5 0-2.3-1.7-4.1-3.9-4.5a7 7 0 1 0-13.4 3C2.8 13.4 1 15.1 1 17.2 1 19.3 2.7 21 4.8 21h12.7c.3 0 .6-.1.9-.1V19z"/></svg>,
+            Settings: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>,
+            Lock: () => <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+            QrCode: () => <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg>,
+            Users: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+            LogOut: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+            Plus: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+            Trash: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>,
+            Edit: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         };
 
-        const FALLBACK_DATA = [{ c: '載入中', s: '連線中...', p: '載入中' }];
-        const GAS_URL = "https://script.google.com/macros/s/AKfycby5AmcAwSnAOE-Khz9t2dCIzyHugcADSMKJYk4WQGbc3srurSMxIR8DcxNjd6tSchRy/exec";
-
         function App() {
+            const [isLoggedIn, setIsLoggedIn] = useState(false);
+            const [userEmail, setUserEmail] = useState('');
+            const [loginMsg, setLoginMsg] = useState('');
             const [activeTab, setActiveTab] = useState('query');
-            const [data, setData] = useState(FALLBACK_DATA);
+            const [data, setData] = useState([]);
             const [loading, setLoading] = useState(true);
-            const [copiedBM, setCopiedBM] = useState(false);
-            const [copiedPwdId, setCopiedPwdId] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
-            const [fetchError, setFetchError] = useState('');
-            
-            const [isSetupUnlocked, setIsSetupUnlocked] = useState(false);
-            const [setupPwdInput, setSetupPwdInput] = useState('');
-            const [verifying, setVerifying] = useState(false);
-            const [verifyError, setVerifyError] = useState('');
-
+            const [copiedId, setCopiedId] = useState(null);
             const [qrModal, setQrModal] = useState({ show: false, ssid: '', pwd: '', c: '' });
-            const [qrUrl, setQrUrl] = useState('');
+            const [isSetupUnlocked, setIsSetupUnlocked] = useState(false);
+            const [setupPwd, setSetupPwd] = useState('');
+            const [showAccountManager, setShowAccountManager] = useState(false);
+            const [whitelist, setWhitelist] = useState([]);
+            const [newEmail, setNewEmail] = useState('');
 
+            // 初始化：檢查本地記憶與 Google 登入狀態
             useEffect(() => {
-                fetch(GAS_URL)
-                    .then(res => res.json())
-                    .then(json => {
-                        if(json.success && json.data) setData(json.data);
-                        else setFetchError(json.error || "雲端資料異常");
-                        setLoading(false);
-                    })
-                    .catch(() => {
-                        setData([{ c: '離線中', s: 'Offline', p: '請檢查網路' }]);
-                        setFetchError("連線中斷");
-                        setLoading(false);
-                    });
-                    
-                if (sessionStorage.getItem('fjm_setup_unlocked') === 'true') setIsSetupUnlocked(true);
+                const saved = localStorage.getItem('fjm_wifi_user');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    verifyAndLogin(parsed.email);
+                }
+                if (sessionStorage.getItem('fjm_setup_auth') === 'true') setIsSetupUnlocked(true);
             }, []);
 
-            // 主網頁的 QR Code 生成 (主網頁沒有嚴格 CSP 限制，可使用載入的庫)
-            useEffect(() => {
-                if (qrModal.show && typeof window.qrcode !== 'undefined') {
-                    try {
-                        const wifiString = `WIFI:S:${qrModal.ssid};T:WPA;P:${qrModal.pwd};;`;
-                        const qr = window.qrcode(0, 'M'); 
-                        qr.addData(wifiString);
-                        qr.make();
-                        const dataUrl = qr.createDataURL(8, 2);
-                        setQrUrl(dataUrl);
-                    } catch (err) {
-                        console.error("QR Code 產生失敗", err);
+            const verifyAndLogin = async (email) => {
+                setLoginMsg('驗證中...');
+                try {
+                    const res = await fetch(`${GAS_URL}?action=verifyLogin&email=${encodeURIComponent(email)}`);
+                    const json = await res.json();
+                    if (json.success && json.authorized) {
+                        setIsLoggedIn(true);
+                        setUserEmail(email);
+                        localStorage.setItem('fjm_wifi_user', JSON.stringify({ email }));
+                        fetchWifiData();
+                    } else {
+                        setLoginMsg('❌ 帳號不在白名單內');
+                        localStorage.removeItem('fjm_wifi_user');
                     }
-                } else {
-                    setQrUrl('');
+                } catch (e) {
+                    setLoginMsg('連線失敗，請重試');
                 }
-            }, [qrModal]);
-
-            const handleVerifyPassword = () => {
-                if (!setupPwdInput) { setVerifyError('請輸入密碼'); return; }
-                setVerifying(true);
-                setVerifyError('');
-                
-                fetch(`${GAS_URL}?action=verify&pwd=${encodeURIComponent(setupPwdInput)}`)
-                    .then(res => res.json())
-                    .then(json => {
-                        if (json.success && json.match) {
-                            setIsSetupUnlocked(true);
-                            sessionStorage.setItem('fjm_setup_unlocked', 'true');
-                            setSetupPwdInput('');
-                        } else { setVerifyError('密碼錯誤'); }
-                        setVerifying(false);
-                    }).catch(() => { setVerifyError('連線異常'); setVerifying(false); });
             };
 
-            const handlePwdKeyDown = (e) => {
-                if (e.key === 'Enter') handleVerifyPassword();
+            const fetchWifiData = () => {
+                setLoading(true);
+                fetch(GAS_URL).then(r => r.json()).then(j => {
+                    if (j.success) setData(j.data);
+                    setLoading(false);
+                });
             };
 
-            // --- 產生書籤代碼 (★ v10.8：內建微型 QR Code 產生器，不依賴任何外部腳本！) ---
-            const bookmarkletCode = useMemo(() => {
-                const compact = data.map(i => ({ s: i.s, c: i.c }));
-                const coreScript = `(async function(){if(document.getElementById('fjm-root'))return;function l(s,g,c){return new Promise(r=>{if(window[g]&&window[g][c])return r();const t=document.createElement('script');t.src=s;t.onload=r;document.head.appendChild(t)})};await l('https://cdn.tailwindcss.com','tailwind','config');await l('https://unpkg.com/react@18/umd/react.production.min.js','React','useRef');await l('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js','ReactDOM','createRoot');
-                const rootDiv=document.createElement('div');rootDiv.id='fjm-root';rootDiv.style.cssText='position:fixed;inset:0;z-index:9999999;background:#f8fafc;overflow-y:auto;';document.body.appendChild(rootDiv);const{useState,useEffect,useMemo,useRef,Fragment,createElement:e}=window.React;const DATA=${JSON.stringify(compact)};const GAS_LINK="${GAS_URL}";const APP_VER="${APP_VERSION}";
-                
-                // ★ 內建 Google Chart API 作為最終備案，若在教育局網頁被擋，我們會改用純文字提示
-                const generateFallbackQrUrl = (ssid, pwd) => {
-                    const ws = 'WIFI:S:' + ssid + ';T:WPA;P:' + pwd + ';;';
-                    return 'https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=' + encodeURIComponent(ws) + '&choe=UTF-8';
-                };
-
-                const App=()=>{const[s,setS]=useState('');const[c,setC]=useState(null);const[d,setD]=useState(DATA.map(x=>({...x,p:"讀取中..."})));const[ld,setLd]=useState(true);const[st,setSt]=useState('idle');const[qrM,setQrM]=useState(null);const[qrUrl,setQrUrl]=useState('');const stopRef=useRef(false);useEffect(()=>{fetch(GAS_LINK).then(r=>r.json()).then(j=>{if(j.success&&j.data)setD(j.data);setLd(false);}).catch(()=>setLd(false));},[]);
-                
-                useEffect(()=>{if(qrM){setQrUrl(generateFallbackQrUrl(qrM.s, qrM.p));}else{setQrUrl('');}},[qrM]);
-                
-                const doSync=async()=>{setSt('syncing');stopRef.current=false;const res=[["教室","SSID","密碼","更新時間"]];for(const a of DATA){if(stopRef.current)break;try{const r=await fetch("/api/qrcode_searching?ssid="+a.s);const j=await r.json();if(j.success&&j.data[0]){const p=j.data[0].ss_password.replace(/(.{4})/g,'$1 ').trim();res.push([a.c,a.s,p,new Date().toLocaleString()]);}}catch(e){}await new Promise(r=>setTimeout(r,300));}if(!stopRef.current){try{await fetch(GAS_LINK,{method:"POST",mode:"no-cors",body:JSON.stringify({data:res})});setSt('done');}catch(e){setSt('error');}}else{setSt('idle');}setTimeout(()=>setSt('idle'),3000);};const doScan=async()=>{setSt('scanning');stopRef.current=false;const res=[["SSID","密碼","比對狀態","更新時間"]];const cands=[];for(let f=1;f<=5;f++){for(let r=1;r<=50;r++){cands.push('FJM-'+f+(r<10?'0'+r:r));}}const extras=['ART','TEST','LIB','LAB','MUSIC','OFFICE'];extras.forEach(x=>cands.push('FJM-'+x));for(let i=0;i<cands.length;i++){if(stopRef.current)break;let ssid=cands[i];setS('掃描中 ('+Math.round((i/cands.length)*100)+'%): '+ssid);try{const r=await fetch("/api/qrcode_searching?ssid="+ssid);const j=await r.json();if(j.success&&j.data[0]){const p=j.data[0].ss_password.replace(/(.{4})/g,'$1 ').trim();const isM=DATA.some(d=>d.s===ssid)?"✅ 已在清單":"❌ 漏填";res.push([ssid,p,isM,new Date().toLocaleString()]);}}catch(e){}await new Promise(r=>setTimeout(r,800));}if(!stopRef.current){try{await fetch(GAS_LINK,{method:"POST",mode:"no-cors",body:JSON.stringify({type:"backup",data:res})});setSt('backup_done');}catch(e){setSt('error');}}setS('');setTimeout(()=>setSt('idle'),3000);};const f=useMemo(()=>!s.trim()?d:d.filter(i=>i.s.toLowerCase().includes(s.toLowerCase())||i.c.includes(s)),[s,d]);const mainContent=e('div',{className:"max-w-md mx-auto bg-slate-50 min-h-screen flex flex-col font-sans"},e('div',{className:"p-6 bg-white border-b sticky top-0 z-10 shadow-sm text-slate-900 font-sans"},e('div',{className:"flex justify-between items-center mb-6"},e('h1',{className:"text-3xl font-black text-slate-800 flex items-center gap-3 font-sans"},"FJM 安全同步",e('span',{className:"text-sm bg-green-100 text-green-700 px-3 py-1 rounded-lg font-bold font-sans"},APP_VER)),e('button',{onClick:()=>document.getElementById('fjm-root').remove(),className:"text-slate-400 font-black p-3 text-xl bg-slate-100 rounded-full w-12 h-12 flex items-center justify-center font-sans transition-colors"},"✕")),e('div',{className:"flex flex-col gap-3 mb-6"},(st==='syncing'||st==='scanning')?e('button',{onClick:()=>stopRef.current=true,className:"w-full py-6 bg-red-500 text-white rounded-[1.5rem] font-black text-2xl shadow-lg flex items-center justify-center gap-3 animate-pulse font-sans"},e('div',{className:"w-5 h-5 bg-white rounded-sm"}),"立即停止"):e('div',{className:"flex flex-col gap-3 font-sans"},e('button',{onClick:doSync,className:"w-full py-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-[1.5rem] font-black text-2xl shadow-lg transition-all font-sans"},st==='done'?'✅ 已更新查詢表':'☁️ 同步現有名單'),e('button',{onClick:doScan,className:"w-full py-4 bg-slate-800 text-white rounded-[1.5rem] font-black text-xl shadow-lg transition-all font-sans"},st==='backup_done'?'✅ 已建立備份表！':'📦 尋找漏填設備 (500內)'))),e('input',{className:"w-full p-5 rounded-2xl bg-slate-100 focus:bg-white border-2 border-transparent focus:border-blue-500 font-black text-2xl outline-none transition-all font-sans",placeholder:"搜尋班級...",value:s,readOnly:(st==='scanning'||st==='syncing'),onChange:ev=>setS(ev.target.value)})),e('div',{className:"p-5 pb-24 flex flex-col gap-5 font-sans"},f.map(i=>{const cp=i.p&&i.p!=="讀取中..."&&i.p!=="尚未同步"&&i.p!=="無資料";const isC=c===i.s;const doC=()=>{if(!cp)return;const ta=document.createElement('textarea');ta.value=i.p.replace(/\\s+/g,'');document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);setC(i.s);setTimeout(()=>setC(null),2000);};return e('div',{key:i.s,className:"bg-white border border-slate-200 rounded-[1.5rem] p-6 shadow-sm relative font-sans"},e('div',{className:"flex justify-between items-center mb-4 font-sans"},e('span',{className:"bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-lg font-black font-sans"},i.c),e('span',{className:"text-slate-700 font-bold font-mono text-2xl font-sans"},i.s)),e('div',{className:"bg-slate-50/80 rounded-[1rem] p-5 pr-[110px] relative flex items-center min-h-[4.5rem] font-sans"},cp?e('div',{className:"relative flex h-6 w-6 ml-2"},e('span',{className:"animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"}),e('span',{className:"relative inline-flex rounded-full h-6 w-6 bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.8)]"})):e('span',{className:"font-mono font-black text-xl font-sans text-slate-400"},i.p),cp&&e('div',{className:"absolute right-4 top-1/2 -translate-y-1/2 flex gap-2"},e('button',{onClick:()=>setQrM({s:i.s,p:i.p,c:i.c}),className:"w-14 h-14 flex items-center justify-center rounded-xl bg-white border border-slate-200 shadow-md transition-all active:scale-90 font-sans text-blue-600"},e('svg',{xmlns:"http://www.w3.org/2000/svg",width:"24",height:"24",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"2.5",strokeLinecap:"round",strokeLinejoin:"round"},e('rect',{width:"5",height:"5",x:"3",y:"3",rx:"1"}),e('rect',{width:"5",height:"5",x:"16",y:"3",rx:"1"}),e('rect',{width:"5",height:"5",x:"3",y:"16",rx:"1"}),e('path',{d:"M21 16h-3a2 2 0 0 0-2 2v3"}),e('path',{d:"M21 21v.01"}),e('path',{d:"M12 7v3a2 2 0 0 1-2 2H7"}),e('path',{d:"M3 12h.01"}),e('path',{d:"M12 3h.01"}),e('path',{d:"M12 16v.01"}),e('path',{d:"M16 12h1"}),e('path',{d:"M21 12v.01"}),e('path',{d:"M12 21v-1"}))),e('button',{onClick:doC,className:"w-14 h-14 flex items-center justify-center rounded-xl bg-white border border-slate-200 shadow-md transition-all active:scale-90 font-sans "+(isC?'text-green-500 border-green-300':'text-blue-600')},isC?'✔':'📋'))))}))));const modalContent=qrM?e('div',{className:"fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in",onClick:()=>setQrM(null)},e('div',{className:"bg-white rounded-[2.5rem] p-8 shadow-2xl flex flex-col items-center max-w-sm w-full",onClick:ev=>ev.stopPropagation()},e('h3',{className:"text-2xl font-black text-slate-800 mb-2"},qrM.c),e('p',{className:"text-blue-600 font-black font-mono text-3xl mb-6 tracking-wider"},qrM.s),qrUrl?e('div',{className:"relative"},e('img',{src:qrUrl,className:"w-64 h-64 mb-6 rounded-xl border-4 border-slate-200 shadow-sm bg-white",onError:(e)=>{e.target.style.display='none';e.target.nextSibling.style.display='flex'}}),e('div',{className:"w-64 h-64 mb-6 rounded-xl border-4 border-slate-50 shadow-sm items-center justify-center bg-slate-100 flex-col gap-2 p-4 text-center",style:{display:'none'}},e('span',{className:"text-slate-500 font-bold text-lg"},"教育局網路阻擋圖片載入"),e('span',{className:"text-slate-400 text-sm"},"請直接複製密碼使用"))):e('div',{className:"w-64 h-64 mb-6 rounded-xl border-4 border-slate-50 shadow-sm flex items-center justify-center bg-slate-100"},e('span',{className:"text-slate-400 font-bold text-xl animate-pulse"},"圖片產生中...")),e('p',{className:"text-slate-600 font-bold tracking-widest text-xl bg-slate-100 px-5 py-3 rounded-2xl mb-8 text-center w-full whitespace-nowrap overflow-hidden text-ellipsis"},"密碼: "+qrM.p),e('button',{onClick:()=>setQrM(null),className:"w-full py-5 bg-slate-800 active:bg-slate-700 text-white rounded-2xl font-black text-xl transition-all"},"關閉視窗"))):null;return e(Fragment,null,mainContent,modalContent)};if(window.ReactDOM.createRoot){window.ReactDOM.createRoot(rootDiv).render(e(App));}else{window.ReactDOM.render(e(App),rootDiv);}})()`;
-                return `javascript:void(${coreScript})`;
-            }, [data]);
-
-            const handleCopyBookmarklet = () => {
-                const ta = document.createElement("textarea");
-                ta.value = bookmarkletCode;
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand('copy');
-                document.body.removeChild(ta);
-                setCopiedBM(true);
-                setTimeout(() => setCopiedBM(false), 3000);
+            const logout = () => {
+                localStorage.removeItem('fjm_wifi_user');
+                location.reload();
             };
 
-            const handleCopyPassword = (pwd, id) => {
-                if (!pwd || pwd === "尚未同步" || pwd === "無資料" || pwd === "讀取中...") return;
-                const cleanPwd = pwd.replace(/\s+/g, '');
-                const ta = document.createElement("textarea");
-                ta.value = cleanPwd;
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand('copy');
-                document.body.removeChild(ta);
-                
-                setCopiedPwdId(id);
-                setTimeout(() => setCopiedPwdId(null), 1500);
+            // Google 登入回傳處理
+            window.handleCredentialResponse = (response) => {
+                const payload = JSON.parse(atob(response.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+                verifyAndLogin(payload.email);
             };
 
+            // --- 帳號管理功能 ---
+            const fetchWhitelist = () => {
+                fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'getWhitelist' }) })
+                    .then(r => r.json()).then(j => setWhitelist(j.data || []));
+            };
+
+            const handleAddAccount = () => {
+                if (!newEmail) return;
+                fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'addWhitelist', email: newEmail }) })
+                    .then(r => r.json()).then(j => {
+                        if (j.status === 'success') { setNewEmail(''); fetchWhitelist(); }
+                        else alert(j.message);
+                    });
+            };
+
+            const handleDeleteAccount = (email) => {
+                if (!confirm(`確定要刪除 ${email} 嗎？`)) return;
+                fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'deleteWhitelist', email: email }) })
+                    .then(() => fetchWhitelist());
+            };
+
+            const handleEditAccount = (oldEmail) => {
+                const newEmail = prompt('請輸入新的 Email:', oldEmail);
+                if (newEmail && newEmail !== oldEmail) {
+                    fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'updateWhitelist', oldEmail, newEmail }) })
+                        .then(r => r.json()).then(j => {
+                            if (j.status === 'success') fetchWhitelist();
+                            else alert(j.message);
+                        });
+                }
+            };
+
+            // 搜尋過濾
             const filteredData = useMemo(() => {
                 const kw = searchTerm.toLowerCase();
-                return searchTerm.trim() ? data.filter(i => (i.s || '').toLowerCase().includes(kw) || (i.c || '').includes(kw)) : data;
+                return data.filter(i => (i.s || '').toLowerCase().includes(kw) || (i.c || '').includes(kw));
             }, [searchTerm, data]);
 
-            return (
-                <Fragment>
-                <div className="flex justify-center bg-slate-200 sm:py-8" style={{ height: '100dvh' }}>
-                    <div className="w-full sm:max-w-md bg-[#f8fafc] h-full relative flex flex-col sm:shadow-2xl sm:rounded-[2.5rem] border-slate-200 sm:border overflow-hidden">
-                        
-                        <div className="flex-1 relative overflow-hidden">
+            if (!isLoggedIn) {
+                return (
+                    <div id="login-screen" className="login-bg">
+                        <div className="login-box animate-fade-in">
+                            <div className="flex justify-center mb-6">
+                                <div className="bg-blue-600 text-white p-4 rounded-3xl shadow-xl"><Icons.Cloud /></div>
+                            </div>
+                            <h1 className="text-4xl font-black text-slate-800 mb-2">FJM Cloud</h1>
+                            <p className="text-slate-500 font-bold mb-8">校園 Wi-Fi 密碼查詢系統</p>
                             
-                            {/* --- 1. 查詢頁面 --- */}
-                            <div className={`absolute inset-0 flex flex-col ${activeTab === 'query' ? 'animate-fade-in z-10' : 'hidden z-0'}`}>
-                                <div className="shrink-0 bg-[#f8fafc]/90 backdrop-blur-xl z-40 px-6 pt-8 pb-5 border-b border-slate-200/60 shadow-sm">
-                                    <div className="flex justify-between items-center mb-6">
-                                        <div className="flex items-center gap-4">
-                                            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white p-3 rounded-[1rem] shadow-lg shadow-blue-500/30">
-                                                <Icons.Cloud />
-                                            </div>
-                                            <div>
-                                                <h1 className="text-3xl font-black text-slate-800 tracking-tight leading-none mb-2">FJM Cloud</h1>
-                                                <span className="text-sm font-black bg-blue-100 text-blue-700 px-3 py-1 rounded-md">{APP_VERSION}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="relative">
-                                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 scale-110">
-                                            <Icons.Search />
-                                        </div>
-                                        <input 
-                                            type="text" 
-                                            placeholder="搜尋班級或代號..." 
-                                            className="w-full pl-16 pr-5 py-5 rounded-[1.25rem] bg-white border-2 border-slate-100 focus:border-blue-500 focus:ring-4 focus:ring-blue-50 outline-none font-black text-2xl shadow-sm text-slate-800 placeholder:text-slate-300"
-                                            value={searchTerm} 
-                                            onChange={e=>setSearchTerm(e.target.value)} 
-                                        />
-                                    </div>
+                            <div className="flex flex-col items-center gap-4">
+                                <div id="g_id_onload"
+                                     data-client_id="553016940521-araovlp30ctbqn6um5rr49q3es5jm4jg.apps.googleusercontent.com"
+                                     data-callback="handleCredentialResponse"
+                                     data-auto_prompt="false">
                                 </div>
-
-                                <div className="flex-1 overflow-y-auto px-5 pt-5 pb-6">
-                                    {fetchError && !loading && (
-                                        <div className="mb-5 bg-red-50 p-5 rounded-[1.5rem] flex items-start gap-4 border border-red-100">
-                                            <div className="text-red-500 mt-1 scale-110"><Icons.Alert /></div>
-                                            <p className="text-xl text-red-700 font-bold leading-relaxed">{fetchError}</p>
-                                        </div>
-                                    )}
-
-                                    {loading ? (
-                                        <div className="py-24 flex flex-col items-center justify-center gap-5 opacity-50">
-                                            <div className="animate-bounce text-blue-500 scale-150 mb-2"><Icons.Cloud /></div>
-                                            <span className="text-2xl font-black text-slate-400 tracking-tighter">同步中，請稍候...</span>
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col gap-5">
-                                            {filteredData.length > 0 ? (
-                                                filteredData.map(i => {
-                                                    const currentId = i.s;
-                                                    const isCopied = copiedPwdId === currentId;
-                                                    // 確保有抓到密碼才算就緒
-                                                    const canCopy = i.p && i.p !== "尚未讀取" && i.p !== "尚未同步" && i.p !== "無資料" && i.p !== "讀取中...";
-
-                                                    return (
-                                                        <div key={currentId} className="bg-white border border-slate-200/80 rounded-[1.5rem] p-6 shadow-sm relative transition-all active:scale-[0.98]">
-                                                            <div className="flex justify-between items-center mb-4">
-                                                                <span className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-lg font-black tracking-widest">{i.c}</span>
-                                                                <span className="text-slate-700 font-bold font-mono text-2xl tracking-wider">{currentId}</span>
-                                                            </div>
-                                                            
-                                                            {/* ★ 極簡化卡片內容：只有亮綠燈或未就緒文字 */}
-                                                            <div className="bg-slate-50/80 rounded-[1rem] p-5 pr-[110px] relative flex items-center min-h-[4.5rem]">
-                                                                {canCopy ? (
-                                                                    <div className="relative flex h-6 w-6 ml-2">
-                                                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                                                      <span className="relative inline-flex rounded-full h-6 w-6 bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.8)]"></span>
-                                                                    </div>
-                                                                ) : (
-                                                                    <span className="font-mono font-black text-xl text-slate-400">{i.p}</span>
-                                                                )}
-                                                                
-                                                                {canCopy && (
-                                                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-2">
-                                                                        <button 
-                                                                            onClick={() => setQrModal({show: true, ssid: currentId, pwd: i.p, c: i.c})}
-                                                                            className="w-14 h-14 flex items-center justify-center rounded-xl bg-white border border-slate-200 shadow-sm transition-all active:scale-90 text-blue-600 hover:bg-blue-50"
-                                                                        >
-                                                                            <div className="scale-110"><Icons.QrCode /></div>
-                                                                        </button>
-
-                                                                        <button 
-                                                                            onClick={() => handleCopyPassword(i.p, currentId)}
-                                                                            className={`w-14 h-14 flex items-center justify-center rounded-xl bg-white border shadow-sm transition-all active:scale-90 ${isCopied ? 'text-green-500 border-green-300 shadow-green-100' : 'text-blue-600 border-slate-200 hover:bg-blue-50'}`}
-                                                                        >
-                                                                            {isCopied ? <div className="scale-110"><Icons.Check /></div> : <div className="scale-110"><Icons.Copy /></div>}
-                                                                        </button>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })
-                                            ) : (
-                                                <div className="py-24 text-center text-slate-400 font-black flex flex-col items-center">
-                                                    <div className="scale-150 mb-4"><Icons.Search /></div>
-                                                    <span className="mt-4 text-2xl tracking-tighter">找不到符合的名單</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
+                                <div className="g_id_signin" data-type="standard" data-shape="pill" data-theme="outline" data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
                             </div>
 
-                            {/* --- 2. 設定頁面 --- */}
-                            <div className={`absolute inset-0 flex flex-col overflow-y-auto px-6 py-8 pb-6 ${activeTab === 'setup' ? 'animate-fade-in z-10' : 'hidden z-0'}`}>
-                                {!isSetupUnlocked ? (
-                                    <div className="flex-1 flex flex-col items-center justify-center h-full pb-20 px-4">
-                                        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100 w-full max-w-sm text-center">
-                                            <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 scale-110 shadow-inner">
-                                                <Icons.Lock />
+                            {loginMsg && <p className="mt-8 text-red-500 font-bold animate-shake text-lg">{loginMsg}</p>}
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="flex justify-center bg-slate-200" style={{ height: '100dvh' }}>
+                    <div className="w-full sm:max-w-md bg-[#f8fafc] h-full relative flex flex-col sm:rounded-[2.5rem] overflow-hidden sm:shadow-2xl">
+                        
+                        {/* 頂部 Header */}
+                        <div className="shrink-0 bg-white border-b border-slate-200 px-6 pt-10 pb-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="text-blue-600"><Icons.Cloud /></div>
+                                    <h1 className="text-2xl font-black text-slate-800 tracking-tight">FJM Wi-Fi</h1>
+                                </div>
+                                <button onClick={logout} className="flex items-center gap-1 text-slate-400 font-bold text-sm bg-slate-50 px-3 py-1.5 rounded-full">
+                                    <Icons.LogOut /> 登出
+                                </button>
+                            </div>
+                            
+                            {activeTab === 'query' && (
+                                <div className="relative">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Icons.Search /></div>
+                                    <input 
+                                        type="text" 
+                                        placeholder="搜尋教室或代號..." 
+                                        className="w-full pl-12 pr-4 py-4 bg-slate-100 rounded-2xl border-2 border-transparent focus:border-blue-500 focus:bg-white outline-none font-bold text-xl transition-all"
+                                        value={searchTerm}
+                                        onChange={e => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 主內容區 */}
+                        <div className="flex-1 overflow-hidden relative">
+                            {/* 查詢頁 */}
+                            <div className={`absolute inset-0 flex flex-col overflow-y-auto p-5 space-y-4 ${activeTab === 'query' ? 'z-10' : 'hidden'}`}>
+                                {loading ? (
+                                    <div className="flex flex-col items-center py-20 gap-4 opacity-40">
+                                        <div className="animate-spin text-blue-600"><Icons.Settings /></div>
+                                        <span className="font-black text-xl">讀取雲端資料...</span>
+                                    </div>
+                                ) : (
+                                    filteredData.map(i => (
+                                        <div key={i.s} className="bg-white p-5 rounded-[1.5rem] border border-slate-100 shadow-sm flex justify-between items-center active:scale-[0.98] transition-transform">
+                                            <div>
+                                                <div className="text-blue-600 font-black text-xl mb-0.5">{i.c}</div>
+                                                <div className="text-slate-400 font-mono font-bold">{i.s}</div>
                                             </div>
-                                            <h2 className="text-4xl font-black text-slate-800 mb-4">驗證</h2>
-                                            <p className="text-slate-500 text-xl font-bold mb-8 opacity-70">輸入管理密碼</p>
-                                            <input
-                                                type="password"
-                                                value={setupPwdInput}
-                                                onChange={(e) => setSetupPwdInput(e.target.value)}
-                                                onKeyDown={handlePwdKeyDown}
-                                                className="w-full bg-slate-50 border-2 border-slate-100 focus:border-blue-500 focus:bg-white rounded-[1.5rem] py-6 px-6 text-center text-3xl font-black tracking-[0.3em] outline-none mb-6 transition-all"
-                                                placeholder="••••"
+                                            <div className="flex gap-2">
+                                                <button onClick={() => setQrModal({show: true, ssid: i.s, pwd: i.p, c: i.c})} className="p-3.5 bg-blue-50 text-blue-600 rounded-2xl active:bg-blue-100"><Icons.QrCode /></button>
+                                                <button 
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText(i.p.replace(/\s/g,''));
+                                                        setCopiedId(i.s);
+                                                        setTimeout(() => setCopiedId(null), 1500);
+                                                    }}
+                                                    className={`p-3.5 rounded-2xl active:scale-95 transition-all ${copiedId === i.s ? 'bg-green-500 text-white shadow-lg shadow-green-200' : 'bg-slate-100 text-slate-600'}`}
+                                                >
+                                                    {copiedId === i.s ? <Icons.Check /> : <Icons.Copy />}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+
+                            {/* 設定頁 */}
+                            <div className={`absolute inset-0 flex flex-col overflow-y-auto p-8 ${activeTab === 'setup' ? 'z-10' : 'hidden'}`}>
+                                {!isSetupUnlocked ? (
+                                    <div className="flex flex-col items-center justify-center h-full gap-8">
+                                        <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-[2rem] flex items-center justify-center shadow-inner"><Icons.Lock /></div>
+                                        <div className="w-full space-y-4">
+                                            <input 
+                                                type="password" 
+                                                placeholder="輸入管理密碼" 
+                                                className="w-full p-6 bg-white border-2 border-slate-100 rounded-3xl text-center text-3xl font-black outline-none focus:border-blue-500"
+                                                value={setupPwd}
+                                                onChange={e => setSetupPwd(e.target.value)}
+                                                onKeyDown={e => e.key === 'Enter' && fetch(`${GAS_URL}?action=verify&pwd=${setupPwd}`).then(r=>r.json()).then(j=>j.match?(setIsSetupUnlocked(true),sessionStorage.setItem('fjm_setup_auth','true')):alert('密碼錯誤'))}
                                             />
-                                            <button onClick={handleVerifyPassword} disabled={verifying} className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-2xl font-black py-6 rounded-[1.5rem] active:scale-95 transition-all shadow-lg flex justify-center items-center gap-2 font-sans">
-                                                {verifying ? '請稍候...' : '進入設定'}
-                                            </button>
-                                            {verifyError && <p className="text-red-500 text-lg font-black mt-5 animate-shake">{verifyError}</p>}
+                                            <button 
+                                                onClick={() => fetch(`${GAS_URL}?action=verify&pwd=${setupPwd}`).then(r=>r.json()).then(j=>j.match?(setIsSetupUnlocked(true),sessionStorage.setItem('fjm_setup_auth','true')):alert('密碼錯誤'))}
+                                                className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black text-xl shadow-lg shadow-blue-200"
+                                            >進入管理模式</button>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="pt-4">
-                                        <h2 className="text-5xl font-black text-slate-800 mb-4 tracking-tighter">系統設定</h2>
-                                        <p className="text-slate-500 text-xl font-bold mb-10 leading-relaxed opacity-80">安全與同步中心</p>
-
-                                        <button onClick={handleCopyBookmarklet} className={`w-full py-8 rounded-[2.5rem] font-black text-3xl shadow-xl transition-all flex flex-col items-center justify-center gap-3 active:scale-95 mb-10 font-sans ${copiedBM ? 'bg-green-500 text-white shadow-green-500/30' : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-blue-500/40'}`}>
-                                            {copiedBM ? <div className="scale-125 mb-1"><Icons.Check /></div> : <div className="scale-125 mb-1"><Icons.Zap /></div>}
-                                            {copiedBM ? '已複製！' : '複製最新外掛 (含QR)'}
+                                    <div className="space-y-8">
+                                        <div className="flex justify-between items-end">
+                                            <h2 className="text-4xl font-black text-slate-800 tracking-tighter">系統管理</h2>
+                                            <span className="text-sm font-bold text-slate-400 mb-1">{APP_VERSION}</span>
+                                        </div>
+                                        
+                                        <button 
+                                            onClick={() => { setShowAccountManager(true); fetchWhitelist(); }}
+                                            className="w-full py-8 bg-white border-2 border-purple-100 rounded-[2rem] shadow-sm flex items-center justify-center gap-4 text-purple-600 active:bg-purple-50 transition-colors"
+                                        >
+                                            <Icons.Users />
+                                            <span className="text-2xl font-black">帳號管理 (白名單)</span>
                                         </button>
 
-                                        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-md mb-10">
-                                            <h3 className="text-2xl font-black text-slate-800 mb-8 flex items-center gap-3 font-sans">
-                                                <div className="scale-110"><Icons.Alert /></div> 禮貌掃描說明
-                                            </h3>
-                                            <div className="space-y-6 text-xl text-slate-600 font-bold leading-relaxed font-sans">
-                                                <p>1. 外掛掃描頻率已限制在 <span className="text-blue-600 font-black">0.8秒/次</span>。</p>
-                                                <p>2. 掃描時，對伺服器負擔極低，請安心使用。</p>
-                                                <p>3. 掃描中若想提早結束，點選外掛上方的 <span className="text-red-500 font-black">紅色停止鍵</span> 即可。</p>
-                                            </div>
+                                        <div className="bg-indigo-50 p-6 rounded-[2rem] border border-indigo-100">
+                                            <h3 className="font-black text-indigo-700 text-lg mb-3 flex items-center gap-2"><Icons.Settings /> 自動同步說明</h3>
+                                            <p className="text-indigo-600 text-sm font-bold leading-relaxed opacity-80">
+                                                本系統已與教育局 Wi-Fi 認證網頁串接，管理人員可透過書籤外掛定期同步最新密碼至此查詢表。
+                                            </p>
                                         </div>
-
-                                        <a href="https://docs.google.com/spreadsheets/d/1LomQabtIlrmMnT0TxKCAectvxiINlMDnEc6QvZCEMbk/edit" target="_blank" className="w-full bg-white hover:bg-slate-50 text-slate-700 font-black text-2xl py-6 rounded-[2rem] flex justify-center items-center gap-3 transition-colors border-2 border-slate-200 shadow-sm active:scale-95 mb-8 font-sans">
-                                            <div className="scale-110"><Icons.Database /></div> 編輯對應表
-                                        </a>
                                     </div>
                                 )}
                             </div>
                         </div>
 
-                        {/* --- ★ 底部導航列 (橫式並排、帶有中央分隔線) --- */}
-                        <div className="shrink-0 w-full bg-white border-t border-slate-200 pt-4 safe-bottom flex justify-between items-center z-50 rounded-b-[2.5rem] sm:rounded-b-none shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.05)] px-2">
-                            <button onClick={() => setActiveTab('query')} className={`flex flex-row items-center justify-center gap-3 p-4 w-1/2 transition-all rounded-2xl ${activeTab === 'query' ? 'text-blue-600 bg-blue-50/50' : 'text-slate-400 hover:text-slate-600'}`}>
-                                <div className="scale-[1.3]"><Icons.Search /></div>
-                                <span className="text-[22px] font-black tracking-widest">查詢</span>
+                        {/* 底部導覽列 */}
+                        <div className="shrink-0 bg-white border-t border-slate-100 px-6 pt-4 safe-bottom flex items-center gap-4">
+                            <button onClick={() => setActiveTab('query')} className={`flex-1 py-4 rounded-2xl flex items-center justify-center gap-3 transition-all ${activeTab === 'query' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 font-black scale-[1.02]' : 'text-slate-400 font-bold'}`}>
+                                <Icons.Search /> 密碼查詢
                             </button>
-                            <div className="w-px h-10 bg-slate-200 rounded-full"></div>
-                            <button onClick={() => setActiveTab('setup')} className={`flex flex-row items-center justify-center gap-3 p-4 w-1/2 transition-all rounded-2xl ${activeTab === 'setup' ? 'text-blue-600 bg-blue-50/50' : 'text-slate-400 hover:text-slate-600'}`}>
-                                <div className="scale-[1.3]"><Icons.Settings /></div>
-                                <span className="text-[22px] font-black tracking-widest">設定</span>
+                            <button onClick={() => setActiveTab('setup')} className={`flex-1 py-4 rounded-2xl flex items-center justify-center gap-3 transition-all ${activeTab === 'setup' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 font-black scale-[1.02]' : 'text-slate-400 font-bold'}`}>
+                                <Icons.Settings /> 管理設定
                             </button>
                         </div>
-
                     </div>
-                </div>
 
-                {/* --- QR Code 彈出視窗 --- */}
-                {qrModal.show && (
-                    <div 
-                        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in"
-                        onClick={() => setQrModal({ show: false, ssid: '', pwd: '', c: '' })}
-                    >
-                        <div 
-                            className="bg-white rounded-[2.5rem] p-8 shadow-2xl flex flex-col items-center max-w-sm w-full"
-                            onClick={(e) => e.stopPropagation()} 
-                        >
-                            <h3 className="text-2xl font-black text-slate-800 mb-2">{qrModal.c}</h3>
-                            <p className="text-blue-600 font-black font-mono text-3xl mb-6 tracking-wider">{qrModal.ssid}</p>
-                            
-                            {qrUrl ? (
-                                <img 
-                                    src={qrUrl} 
-                                    className="w-64 h-64 mb-6 rounded-xl border-4 border-slate-200 shadow-sm bg-white" 
-                                    alt="Wi-Fi QR Code" 
-                                />
-                            ) : (
-                                <div className="w-64 h-64 mb-6 rounded-xl border-4 border-slate-50 shadow-sm flex items-center justify-center bg-slate-100">
-                                    <span className="text-slate-400 font-bold text-xl animate-pulse">圖片產生中...</span>
+                    {/* QR Code Modal */}
+                    {qrModal.show && (
+                        <div className="fixed inset-0 z-[200] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in" onClick={() => setQrModal({show:false})}>
+                            <div className="bg-white rounded-[3rem] p-10 w-full max-w-sm flex flex-col items-center shadow-2xl" onClick={e => e.stopPropagation()}>
+                                <div className="bg-blue-50 text-blue-600 px-6 py-2 rounded-full font-black text-xl mb-2">{qrModal.c}</div>
+                                <h3 className="text-3xl font-black text-slate-800 mb-8 font-mono tracking-wider">{qrModal.ssid}</h3>
+                                
+                                <div className="bg-slate-50 p-6 rounded-[2.5rem] mb-8 border border-slate-100 shadow-inner">
+                                    <img 
+                                        src={`https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=${encodeURIComponent(`WIFI:S:${qrModal.ssid};T:WPA;P:${qrModal.pwd.replace(/\s/g,'')};;`)}`} 
+                                        className="w-56 h-56 mix-blend-multiply"
+                                        alt="WiFi QR"
+                                    />
                                 </div>
-                            )}
-                            
-                            <p className="text-slate-600 font-bold tracking-widest text-xl bg-slate-100 px-5 py-3 rounded-2xl mb-8 text-center w-full whitespace-nowrap overflow-hidden text-ellipsis">
-                                密碼: {qrModal.pwd}
-                            </p>
-                            
-                            <button 
-                                onClick={() => setQrModal({ show: false, ssid: '', pwd: '', c: '' })} 
-                                className="w-full py-5 bg-slate-800 active:bg-slate-700 text-white rounded-2xl font-black text-xl transition-all"
-                            >
-                                關閉視窗
-                            </button>
+                                
+                                <div className="w-full bg-slate-100 py-4 px-6 rounded-2xl mb-8 flex justify-center items-center gap-3">
+                                    <span className="text-slate-400 font-bold">密碼:</span>
+                                    <span className="text-slate-800 font-black font-mono text-2xl tracking-widest">{qrModal.pwd}</span>
+                                </div>
+
+                                <button onClick={() => setQrModal({show:false})} className="w-full py-5 bg-slate-800 text-white rounded-3xl font-black text-xl shadow-xl active:scale-95 transition-all">關閉視窗</button>
+                            </div>
                         </div>
-                    </div>
-                )}
-                </Fragment>
+                    )}
+
+                    {/* 帳號管理全螢幕 Modal */}
+                    {showAccountManager && (
+                        <div className="fixed inset-0 z-[300] bg-white flex flex-col animate-fade-in font-sans">
+                            <div className="shrink-0 p-6 border-b border-slate-100 flex justify-between items-center">
+                                <h3 className="text-2xl font-black text-slate-800">白名單帳號管理</h3>
+                                <button onClick={() => setShowAccountManager(false)} className="w-12 h-12 flex items-center justify-center bg-slate-100 rounded-full font-black text-slate-400">✕</button>
+                            </div>
+                            
+                            <div className="shrink-0 p-6 space-y-4 bg-slate-50 border-b border-slate-100">
+                                <div className="flex gap-2">
+                                    <input 
+                                        type="email" 
+                                        placeholder="輸入新增的 Email..." 
+                                        className="flex-1 p-4 bg-white border border-slate-200 rounded-2xl outline-none font-bold focus:border-green-500"
+                                        value={newEmail}
+                                        onChange={e => setNewEmail(e.target.value)}
+                                    />
+                                    <button onClick={handleAddAccount} className="bg-green-500 text-white p-4 rounded-2xl shadow-lg shadow-green-100"><Icons.Plus /></button>
+                                </div>
+                                <p className="text-slate-400 text-sm font-bold pl-1">★ 僅列於清單中的帳號可登入此查詢系統</p>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                                {whitelist.map(email => (
+                                    <div key={email} className="bg-white border border-slate-200 p-5 rounded-3xl flex justify-between items-center shadow-sm">
+                                        <span className="text-slate-700 font-black text-lg truncate flex-1 mr-4">{email}</span>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => handleEditAccount(email)} className="p-3 bg-yellow-50 text-yellow-600 rounded-xl"><Icons.Edit /></button>
+                                            <button onClick={() => handleDeleteAccount(email)} className="p-3 bg-red-50 text-red-500 rounded-xl"><Icons.Trash /></button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {whitelist.length === 0 && <p className="text-center py-20 text-slate-300 font-bold">目前無授權帳號</p>}
+                            </div>
+                        </div>
+                    )}
+
+                </div>
             );
         }
 
